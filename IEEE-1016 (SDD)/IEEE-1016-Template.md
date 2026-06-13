@@ -1,190 +1,1565 @@
-# *Template Title*
-## 1. Overview
-### 1.1 Scope
-*The developed product is...*
+# Smart API
+## 1. Введение
+### 1.1 Цель документа
+Настоящий документ представляет собой Описание дизайна программного обеспечения (Software Design Description — SDD) для системы Smart API. Целью данного документа является детальное фиксирование архитектурных решений, внутренней структуры, логики взаимодействия компонентов и механизмов интеграции с внешними системами в соответствии со стандартом IEEE Std 1016-2009.
 
-*How is the developed product used?*
+Документ переводит высокоуровневые функциональные требования к системе контроля доступа в конкретные технические спецификации, классы, сервисы и интерфейсы взаимодействия, обеспечивая единую технологическую карту для команды разработки, инженеров по тестированию и системных интеграторов.
+### 1.2 Область применения системы
+Программное обеспечение Smart API представляет собой специализированный REST API, выступающий в качестве центрального управляющего и оркестрационного ядра для комплексной системы управления доступом (СКУД).
 
-*What is the objective of the developed product?*
+Область применения системы охватывает автоматизацию и централизацию следующих ключевых бизнес-процессов и функций:
 
-Each design concern of the stakeholders are topic of at least one design view and these design views are descried with corresponding design elements and modeled with related UML diagrams. The document is prepared in IEEE 1016-2009 standards.
-### 1.2 Purpose
-*The purpose of this document is...*
+  a) Управление организационной структурой объектов: Моделирование физической инфраструктуры, включая здания, помещения (facilities), физические входы и логические группы входов.
 
-The purpose of this document is to provide a description of the design of the software product to allow for software design to proceed with a perceptive of the design that is to be structured and how the process of it develops. The topics of, general description of design elements and their interactions, how the system will be structured, data & functional structure are to e further discussed in order to help producing test cases, and help in maintenance services, and also satisfy requirements, design details indicated in the SRS document.
-### 1.3 Intended Audience
-*The intended audience of the software design description is...*
+  b) Управление аппаратным обеспечением (IoT-слой): Интеграция, мониторинг и конфигурация физических устройств доступа — домофонов, камер видеонаблюдения, считывателей карт и контроллеров.
 
-This standard is intended for technical and managerial stakeholders who prepare and use SDDs. It guides a designer in the selection, organisation, and presentation of design information. For an organisation developing its own SDD practices, the use of this standard can help to ensure that design descriptions are complete, concise, consistent, interchangeable, appropriate for recording design experiences and lessons learned, well organised, and easy to communicate.
-### 1.4 References
-[1] IEEE. IEEE Std 1016-2009 IEEE Standard for Information Technology - System Design - Software Design Descriptions. IEEE Computer Society, 2009
+  c) Идентификация и разграничение прав: Аутентификация и авторизация пользователей на основе современных протоколов безопасности, управление цифровыми идентификаторами (персональные коды доступа, RFID-метки) и гибкая привязка прав пользователей к конкретным точкам прохода и помещениям.
 
-[2] StarUML 5.0 User Guide. (2005). Retrived from http://staruml.sourcefource.net/docs/user-guide%20(en)/toc.html
-## 2. Definitions, Acronyms and Abbreviations
-All the definitions, acronyms and abbreviations which are used in this document are described in the following table.
+  d) Коммуникационная интеграция: Организация SIP-телефонии и видеозвонков через координацию работы АТС.
 
-| Name | Definition |
+  e) Мультимедийный мониторинг: Управление и регистрация видеопотоков с камер наблюдения, предоставление интерфейсов для просмотра живого видео и работы с архивом.
+
+  f) Асинхронное удаленное управление: Обеспечение мгновенного взаимодействия с аппаратным уровнем, включая удаленное открытие дверей и исполнительных механизмов.
+
+  g) Сквозная синхронизация: Автоматическое распределение, обновление и актуализация учетных данных пользователей, прав и конфигураций устройств между всеми смежными и внешними ИТ-системами комплекса.
+### 1.3 Целевая аудитория
+Данная техническая документация ориентирована на следующие группы специалистов:
+
+  a) Архитекторы ПО и Ведущие разработчики: Для понимания ограничений многослойной архитектуры, принципов изоляции бизнес-логики и соблюдения контрактов взаимодействия между слоями.
+
+  b) DevOps-инженеры и Системные администраторы: Для настройки инфраструктурного окружения, управления контейнеризацией, конфигурации переменных среды и развертывания сопутствующих сервисов.
+
+  c) Специалисты по информационной безопасности: Для проведения аудита механизмов авторизации, проверки корректности валидации JWT-токенов и интеграции с Keycloak.
+
+  d) Инженеры по тестированию: Для формирования стратегии интеграционного и сквозного тестирования на основе зафиксированных сценариев взаимодействия слоев и внешних API.
+
+  e) Инженеры по сопровождению и интеграторы: Для понимания протоколов взаимодействия системы с физическим оборудованием и внешними информационными системами.
+## 2. Определения, акронимы и сокращения
+В данном разделе приведены определения терминов, сокращений и аббревиатур, необходимых для однозначного понимания архитектурных решений, описанных в настоящем документе.
+| Название | Определение |
 | --- | -------- |
-| Block Diagram | A diagram showing in schematic form the general arrangement of the parts or components of a complex system or process. |
-| Class Diagram | A type of static structure diagram in UML that describes the structure of a system by showing the system's classes, their attributes, operations (or methods), and the relationships among the classes |
-| IDE | Integrated Development Environment |
-| IEEE Standard | International Electric Electronic Engineering Standards 1016-2009 |
-| PC | Personal Computer |
-| SDD | Software Design Description |
-| SDK | Software Development Kit |
-| Sprint | A set of period of time during which specific work has to be completed and made ready for review |
-| SRS | Software Requirement Specifications |
-| Stakeholders | Any person with an interest in the system who is not a developer of the system |
-| StarUML | Design tool of diagrams |
-| State Transition Diagram | A type of static structure in UML that describes the transition of the system functions |
-| USB | Universal Serial Bus |
-| Use Case Diagram | A type of static structure diagram in UML that describes user's interaction with the system |
-| User | Person who wants to use the system |
-| User Interface | An interface that our system contact with the user of the system. It gets all needed information for its running, from user to our system |
-## 3. Conceptual Model for Software Design Descriptions
-This section includes basic *product name* System terms, concepts and context of SDD in which the documentation is prepared. The purpose of conceptual model is to give a better understanding of system terminology and software life cycle that the system resides on. The conceptual model also gives information about stakeholders who will use SDD and how the SDD will be used.
+| API (Application Programming Interface) | программный интерфейс приложения, набор готовых классов, процедур, функций и структур, предоставляемых приложением для использования во внешних программных продуктах. |
+| AMI (Asterisk Manager Interface) | стандартный интерфейс управления АТС Asterisk, позволяющий внешним программам отправлять команды в АТС и отслеживать её статус в реальном времени. |
+| DRF (Django REST Framework) | мощный и гибкий инструментарий для разработки веб-API на языке Python на базе фреймворка Django. |
+| JWT (JSON Web Token) | открытый стандарт (RFC 7519) для создания токенов доступа, содержащих зашифрованные данные в формате JSON, используемый для безопасной передачи информации между клиентом и сервером. |
+| IoT (Internet of Things) | интернет вещей, концепция вычислительной сети физических предметов («вещей»), оснащённых встроенными технологиями для взаимодействия друг с другом или с внешней средой (контроллеры, домофоны, считыватели). |
+| MQTT (Message Queuing Telemetry Transport) | упрощенный сетевой протокол publish-subscribe (издание-подписка), работающий поверх TCP/IP, ориентированный на обмен сообщениями между IoT-устройствами в условиях низкой пропускной способности каналов связи. |
+| OIDC (OpenID Connect) | корпоративный слой аутентификации поверх протокола OAuth 2.0, позволяющий клиентам проверять личность конечного пользователя на основе аутентификации, выполненной сервером авторизации. |
+| ORM (Object-Relational Mapping) | технология программирования, которая связывает базы данных с концепциями объектно-ориентированных языков программирования, создавая «виртуальную объектную базу данных» (Django ORM). |
+| REST (Representational State Transfer) | архитектурный стиль взаимодействия компонентов распределённого приложения в сети, использующий стандартные методы HTTP (GET, POST, PUT, DELETE). |
+| RFID (Radio Frequency Identification) | способ автоматической идентификации объектов, в котором посредством радиосигналов считываются или записываются данные, хранящиеся на RFID-метках (картах, брелоках). |
+| RTSP (Real Time Streaming Protocol) | потоковый протокол реального времени, предназначенный для использования в системах, работающих с мультимедийными данными, для удаленного управления потоком видео/аудио с камер. |
+| SDD (Software Design Description) | Описание дизайна программного обеспечения; технический документ, детально фиксирующий архитектурное проектирование системы. |
+| SIP (Session Initiation Protocol) | протокол передачи данных, описывающий способ установления и завершения пользовательского интернет-сеанса, включающего обмен мультимедийным контентом (IP-телефония, видеозвонки). |
+| СКУД | Система контроля и управления доступом; совокупность программно-аппаратных технических средств безопасности, имеющих целью ограничение и регистрацию входа-выхода объектов на заданной территории. |
+| Вход (Entrance / Точка прохода) | логическая и физическая сущность в СКУД, представляющая собой барьер (дверь, турникет, ворота), оборудованный исполнительными механизмами и контроллерами для ограничения доступа. |
+| Группа входов (Entrance Group) | логическое объединение нескольких точек прохода (например, «Входы первого этажа», «Периметр»), используемое для массового назначения прав доступа пользователям. |
+| Драйвер устройства (Device Driver) | обособленный программный модуль в слое инфраструктуры, содержащий низкоуровневую логику трансляции абстрактных команд системы в специфичные сетевые пакеты конкретного вендора оборудования. |
+| Код доступа (Access Code) | цифровой идентификатор, для прохождения верификации в СКУД. |
+| Контроллер (Controller Layer) | в архитектурном плане: верхний слой веб-приложения, отвечающий за прием HTTP-запросов, их маршрутизацию, первичную валидацию входных параметров и формирование HTTP-ответов. |
+| Помещение (Facility) | изолированная зона внутри здания, доступ к которой жестко регламентируется правами доступа и фиксируется в журнале событий. |
+| Репозиторий (Repository Layer) | архитектурный слой, изолирующий логику персистенции и работы с базами данных (Django ORM, Asterisk DB) от уровня бизнес-логики приложения. |
+| Сервис (Service Layer) | центральный архитектурный слой, содержащий чистую бизнес-логику системы, правила разграничения доступа, алгоритмы синхронизации и оркестрирующий взаимодействие между контроллерами, репозиториями и инфраструктурными шлюзами. |
+| Сигнал (Django Signal) | внутренний механизм фреймворка, реализующий паттерн «Наблюдатель» (Observer), используемый в проекте для автоматического перехвата событий изменения моделей и инициации асинхронной синхронизации данных с внешними системами и IoT-оборудованием. |
+| Стейкхолдер (Stakeholder) | лицо или организация, имеющая права, доли, требования или интересы относительно системы или ее свойств, удовлетворяющих их потребностям и ожиданиям. |
+## 3. Концептуальная модель описания дизайна ПО
+### 3.1 Контекст проектирования программного обеспечения
+Проектирование архитектуры Smart API основано на фундаментальном разделении понятий между требованиями к системе (что система должна делать) и её дизайном (как система это реализует). Настоящий документ (SDD) выступает в качестве связующего звена между Спецификацией требований к программному обеспечению (SRS) и непосредственной программной реализацией на языке Python.
 
-### 3.1 Software Design in Context
-*What is the design paradigm of the product?*
+Контекст проектирования Smart API учитывает распределенный характер системы, где центральное веб-приложение координирует работу независимых внешних сервисов (Keycloak, Asterisk, MediaMTX) и распределенной сети IoT-устройств (контроллеров и домофонов). Дизайн системы нацелен на обеспечение изоляции бизнес-логики от инфраструктурных изменений, модульности, отказоустойчивости и безопасности данных.
 
-*How/What will the product be implemented using?*
+### 3.2 Место SDD в жизненном цикле разработки
+Данное описание дизайна (SDD) является динамическим артефактом, который активно используется на протяжении всего жизненного цикла разработки Smart API. Его влияние распределяется по следующим этапам:
 
-*What will the product try to give?* The system will try to give the most accurate result in a most applicable, proper and correct time with its both software and hardware parts; so it can respond to users' wants correctly and quickly. *How else should it correctly respond?* The speed of software part of the system depends on the computational operations according to processor(s) of computer that runs our system.
+#### 3.2.1 Влияние на подготовку и актуализацию SDD
+На формирование и наполнение данного документа влияют:
 
-*What is the planned application of the product?*
+  a) Функциональные требования: Списки бизнес-функций (управление доступом, логирование, видеонаблюдение), зафиксированные в ТЗ проекта.
 
-### 3.2 Software Design Descriptions Within the Life Cycle
-This software will be created following IEEE standards. The primary milestones of this system are requirements analysis, design description analysis, implementation and finally verification and validation.
+  b) Технологические ограничения (Стек технологий): Архитектурные особенности фреймворка Django 4.2+, механизмы Django REST Framework, а также специфика сетевых протоколов (MQTT, RTSP, SIP, AMI).
 
-#### 3.2.1 Influences on SDD Preparation
-The very first influence on software desing process is the *product name* SRS document. In SDD, we considered the product perspective, functional/nonfunctional requirements and interface requirements that were included in the SRS. Given specifications and the possible new requests from the stakeholders will specify the design process of this sytem.
+  c) Требования к интеграции: Открытые спецификации API внешних систем (Keycloak, MediaMTX, Биллинг).
+#### 3.2.2 Влияние SDD на продукты жизненного цикла
+Информация, зафиксированная в настоящем SDD, является определяющей для создания смежных продуктов разработки:
 
-#### 3.2.2 Influences on Software Life Cycle Products
-*What is the order the product should be designed in?*
+  a) Исходный код (Source Code): Структура каталогов проекта (модули Controller, Service, Repository, Models, Infrastructure) жестко регламентируется разделом композиции данного документа. Разработчики обязаны следовать правилам инверсии зависимостей и изоляции слоев.
 
-*How will changes (such as stakeholder opinions or test) during the design process be implemented into this design?*
+  b) Интеграционные тесты (Test Cases): Описанные в документе сценарии динамического взаимодействия (Interaction Viewpoint) и состояния сущностей (State Dynamics Viewpoint) служат основой для написания тестовых сценариев в каталоге api/tests/ с использованием pytest.
 
-Furthermore, the SDD will guide us all the way through the system. According to this document or the first phase some requirements can be added or removed from the software requirements. Consequently, requirements of the stakeholders can be met more precisely after each sprint of our development process.
+  c) Эксплуатационная документация: Описание инфраструктурного слоя и интеграций напрямую влияет на конфигурацию сред развертывания в файлах docker-compose.prod.yml и docker-compose.test.yml.
 #### 3.2.3 Design Verification and Design Role in Validation
-Verification is the process that we will use to test the *product name* system, to determine whether it meets a set of design specifications. In this process, we will look at the SRS and SDD documents for correctness of specifications. We will control that whether all functional and nonfunctional requirements are correctly implemented according to the requirements of the SRS and SDD documents. Furthermore, we will control that whether the design viewpoints of the final *product name* system are met in the viewpoints part of the SDD document.
+Верификация (Design Verification): Настоящий документ позволяет убедиться, что внутренний дизайн системы спроектирован правильно. С помощью UML-диаграмм классов и компонентов проверяется отсутствие циклических зависимостей между слоями и корректность распределения ответственности.
 
-Validation is the process that the stakeholders and developers decide if the *product name* system is consistent with the main goal, *which is...*.
+Валидация (Design Role in Validation): SDD доказывает, что спроектированная архитектура полностью покрывает требования заказчика. Каждая функция из технического задания прослеживается до конкретного проектного элемента.
 
-After the complete implementation of the system, the testing process will be handled with SDD influenced test plans and cases.
+## 4. Информационное содержание описания дизайна
+### 4.1 Введение
+Настоящий раздел определяет требования к информационному наполнению описания дизайна программного обеспечения (SDD) Smart API. В соответствии со стандартом IEEE Std 1016-2009, здесь фиксируются идентификационные данные документа, состав заинтересованных лиц, а также унифицированные правила, атрибуты и языки, используемые для моделирования архитектуры.
 
-## 4. Design Description Information Content
-### 4.1 Introduction
-Software design description of the *product name* system analyses how the system will be designed and implemented. This section investigates these according to identification of the SDD, identified design stakeholders and design concerns, related design viewpoints, design views, overlays, rationale and languages. Furthermore, this section includes design elements which are design entities, attributes, relationships and constraints.
+### 4.2 Идентификация документа
+Название системы: «Smart API».
 
-### 4.2 SDD Identification
-*When will the product be released?* after validation and verification tests.
+Наименование документа: Описание дизайна программного обеспечения Smart Api.
 
-*Who is allowed to modify the product?*
+Версия документа: 1.0.0
 
-*Who is allowed to distribute the product?*
+Дата выпуска: 12.06.2026
 
-Scope, references, context and summary can be found under the section "Overview". Glossary can be found under the section "Definitions, Acronyms and Abbreviations".
+Статус: В разработке
 
-### 4.3 Design Stakeholders and their Concerns
-*Who are the stakeholders, and what are their concerns?*
+Организация: Джи Ком
 
-*What concerns could be associated with the project?*
+Авторский состав: Даниил Корнев
+### 4.3 Стейкхолдеры и их ожидания
+Ниже приведена детальная спецификация архитектурных проблем и ожиданий для каждой группы стейкхолдеров.
 
-### 4.4 Design Views
-Design views help deisgn stakeholders about focusing on design details from a specific perspective and meeting relevant requirements. Each identified design concern must be topic of at least one design view so that SDD is complete. Each design concerns identified in the previous subsection the topic of most of the design views in this document; thus, this SDD is completed. For example, concerns about cost are topic of composition view Moreover, concerns about quality of photo are topic of logical view. In this document, context, composition, logical dependency, information, patterns use, interface, interaction and state dynamics views will be explained in section 4.5 as their corresponding viewpoints. For some views, relevant UML diagrams will be shown in order to clarification.
+### 4.3.1 Ожидания инженеров и архитекторов ПО
+  a) Изоляция бизнес-логики: Архитектура должна строго разделять обязанности. Изменения в схемах таблиц БД (слой Models) или протоколах внешних систем не должны приводить к переписыванию бизнес-логики СКУД (слой Service).
 
-### 4.5 Design Viewpoints
-This document describes context, composition, logical, dependency, information patterns use, interface, structure, and interaction and state dynamics viewpoints.
+  b) Полиморфизм IoT-оборудования: Система должна легко расширяться при добавлении новых вендоров оборудования. Бизнес-логика должна оперировать абстрактными командами, а детали протокола конкретного устройства  должны инкапсулироваться внутри обособленных драйверов.
 
-#### 4.5.1 Context Viewpoint
-It describes the relationships dependencies and interactions between the system and its environment such as users and other interacting stakeholders. Interactions between the system and its actors are very intense. It includes use case, context and block diagrams showing the system boundary.
+  c) Устранение циклических зависимостей: Исключение жесткой связанности модулей для обеспечения высокой поддерживаемости и тестируемости кода.
 
-#### 4.5.2 Composition Viewpoint
-It describes how the design subject splits up into its components and which roles these components have. It can be used in estimating cost, staffing and scheduling duties of development teams. It includes deployment and component diagram.
+### 4.3.2 Ожидания специалистов по информационной безопасности
+  a) Централизованная аутентификация и авторизация: Smart API не должен хранить пароли пользователей. Аутентификация должна делегироваться внешнему провайдеру (Keycloak).
 
-#### 4.5.3 Logical Viewpoint
-It describes class structures, interactions between them and how they are designed and implemented. Also it supports development and reuse of existing logical components. It includes a class diagram which defines objects and classes, and relationships between them.
+  b) Валидация контрактов безопасности: Слой контроллеров API обязан строго проверять входящие криптографические JWT-токены, валидировать подписи, сроки действия и разграничивать доступ на основе ролей и разрешений, полученных из Keycloak.
 
-#### 4.5.4 Dependency Viewpoint
-It describes the components of the system and dependencies between these components. It gives information about shared information and order of execution of these components.
+  c) Аудит проходов и логов: Любое действие по изменению прав, генерации кодов доступа, а также факты открытия дверей должны гарантированно логироваться в неизменяемом журнале событий.
 
-#### 4.5.5 Information Viewpoint
-It describes data items, data types and classes data stores and access mechanisms. It gives information about data attributes.
+4.3.3 Ожидания DevOps-инженеров и системных администраторов
+  a) Воспроизводимость сред развертывания: Система должна разворачиваться идентично как на локальных машинах разработчиков, так и на боевых серверах. Это должно быть реализовано через оркестрацию изолированных контейнеров в Docker Compose.
 
-#### 4.5.6 Patterns use Viewpoint
-It describes design patterns and usage of design patterns which meet design ideas of the project.
+  b) Управление конфигурацией: Все чувствительные данные (ключи Keycloak, доступы к базам данных Asterisk, адреса MQTT-брокеров) должны быть вынесены из исходного кода в переменные окружения конфигурационных файлов.
 
-#### 4.5.7 Interface Viewpoint
-It describes the details of external and internal interfaces. It provides information to the designers, programmers and testers before proceeding with the detailed design of the system. This also provides designers, programmers and testers to use the system as a random user.
+4.3.4 Ожидания инженеров по интеграции и телефонии
+  a) Асинхронность и отказоустойчивость IoT-коммуникаций: Отправка команд на открытие дверей через протокол MQTT должна происходить мгновенно и асинхронно, не блокируя основной поток выполнения HTTP-запросов веб-сервера. При временном отключении контроллера система должна корректно обрабатывать таймауты сетевого брокера.
 
-#### 4.5.8 Interaction Viewpoint
-It describes the sequence of actions and how, why, where and at what level actions occur in the system. It is preferred to use state dynamics views in detailed for this project.
+  b) Надежность синхронизации данных: Синхронизация телефонных книг и учетных записей пользователей с АТС Asterisk (через AMI/БД), а также регистрация RTSP-видеопотоков в MediaMTX должны осуществляться через событийно-ориентированные триггеры (Django Signals), гарантируя консистентность данных между системами.
 
-#### 4.5.9 State Dynamics Viewpoint
-It describes the internal behaviour of the system. System dynamics include modes, states, transitions and reactions to events. It gives information step by step about the system operation. It includes state machine diagram which defines conditions, states, transitions and relationships between them.
+4.3.5 Ожидания инженеров по тестированию
+  a) Тестируемость компонентов: Слои репозиториев и сервисов должны быть спроектированы так, чтобы их можно было изолированно покрывать Unit-тестами с использованием механизмов моканья внешних зависимостей (Keycloak, АТС, СУБД) в среде pytest.
 
-### 4.6 Design Elements
-Any item which appears in a design view is named as a design element. It may be one or some of these subcases; design entity, design relationship, design attribute and design constraints. All design elements are defined with subcases under their corresponding viewpoint in section 5 of the software design description.
+  b) Прозрачность API-контрактов: Наличие актуальной интерактивной спецификации эндпоинтов (OpenAPI/Swagger) для автоматизации тестирования черного ящика.
 
-#### 4.6.1 Design Entities
-*Design entities capture key elements of a software design.*
+### 4.4 Выбор архитектурных точек зрения
+Для минимизации сложности описания и предоставления релевантной информации конкретным стейкхолдерам, дизайн системы представляется через следующие регламентированные точки зрения (описанные далее в Разделе 5):
 
-*Each design entity shall have a name (4.6.2.1), a type (4.6.2.2), and purpose (4.6.2.3).*
+  a) Composition Viewpoint (Точка зрения композиции)
 
-*Examples of design entities include, but are not limited to, the following: systems, subsystems, libraries, frameworks, abstract collaboration patterns, generic templates, components, classes, data stores, modules, program units, programs, and processes.*
+  b) Logical Viewpoint (Логическая точка зрения)
 
-#### 4.6.2 Design Attributes
-A design attribute names a characteristic or property of a design element (which may be a design entity design constraint or a design relationship) and provides a statement of fact about that design element.
+  c) Interface Viewpoint (Точка зрения интерфейсов)
 
-All design attributes declared by a design viewpoint shall be specified.
+  d) Interaction Viewpoint (Точка зрения взаимодействия)
 
-*Design attributes can be thought of as questions about design elements. The answers to those questions are the values of the attributes. All the questions can be answered, but the content of the answer will depend upon the nature of the entity. The collection of answers provides a complete description of an entity. Attribute descriptions should include references and design considerations such as tradeoffs and assumptions when appropriate. In some cases, attribute descriptions may have the value none.*
+  e) State Dynamics Viewpoint (Точка зрения динамики состояний)
 
-##### 4.6.2.1 Name Attributes
-*The name of the element. Each design element shall have an unambiguous reference name. The names for the element may be selected to characterise their nature. This will simplify referencing and tracking in addition to providing identification*
+  f) Deployment Viewpoint (Точка зрения развертывания)
+### 4.5 Языки и инструменты проектирования
+Для построения наглядных и недвусмысленных моделей архитектуры Smart API используются следующие стандартизированные языки и нотации:
 
-##### 4.6.2.2 Type Attributes
-*A description of the kind of element. The type attribute shall describe the nature of the element. It may simply name the kind of element, such as subsystem, component, framework, library, class, subprogram, module, program unit, function, procedure, process, object, persistent object, class or data store. Alternatively, design elements may be grouped into major classes to assist in locating an element dealing with a particular type of information.*
+  a) UML 2.5 (Unified Modeling Language): Основной графический язык для визуализации статической структуры (компоненты, классы) и динамического поведения (последовательности вызовов, диаграммы состояний).
 
-*Within an SDD, the chosen element types shall be applied consistently.*
+  b) Спецификация OpenAPI v3.0: Язык описания интерфейсов для документирования REST API эндпоинтов, параметров запросов/ответов и схем сериализации.
 
-##### 4.6.2.3 Purpose Attribute
-*A description of why the element exists. The purpose attribute shall provide the rationale for the creation of the element.*
+  c) JSON (JavaScript Object Notation): Формат структурирования данных, применяемый в контрактах обмена сообщениями.
 
-##### 4.6.2.4 Author Attribute
-*Identification of designer. The author attribute shall identify the designer of the element.*
+  d) Структурированный текст (Markdown): Формат ведения технической документации и описания алгоритмов.
 
-#### 4.6.3 Design Relationships
-*A design relationship names an association or correspondence among two or more design entities. It provides a statement of fact about those design entities.*
+### 4.6 Элементы дизайна и их атрибуты
+Каждая сущность, класс, модуль или интеграционный шлюз, описываемый в рамках точек зрения (Раздел 5), должен обладать унифицированным набором характеристик. Стандарт IEEE 1016-2009 требует фиксации следующих базовых атрибутов для каждого элемента дизайна:
 
-*Each design relationship in an SDD shall have a name (4.6.2.1) and a type (4.6.2.2). A design relationship shall identify the design entities participating in the relationship.*
+#### 4.6.1 Идентификатор
+Каждому элементу присваивается уникальное системное имя для однозначного поиска в кодовой базе и схемах.
 
-*There are no design relationships defined in this standard. Most design techniques use design relationships extensively. Normally these design relationships will be defined as part of a design viewpoint. For example, structured design methods are built around design relationships including input (datum I is an input to process A), output (datum O is an output of process A) and decompose (process A decompose into processes A1, A2, and A3) relationships. Object-oriented design methods use design relationships including encapsulation, generalisation, specialisation, composition, aggregation, realisation, and instantiation.*
+#### 4.6.2 Тип элемента
+Указывается мета-тип элемента структуры, определяющий его архитектурную роль: Модуль, Пакет, Контроллер, Сервис, Репозиторий, Модель ORM, Драйвер, Внешняя система.
 
-#### 4.6.4 Design Constraints
-*A design constraint is an element of a design view that names a rule or restriction imposed by one design element (the source) upon another design element (the target), which may be a design entity, design attribute, or design relationship.*
+#### 4.6.3 Назначение
+Краткое текстовое описание функциональной ответственности элемента.
 
-*Each design constraint in an SDD shall have a name (4.6.2.1) and a type (4.6.2.2). A design constraint shall identify its source and target design entities.*
+#### 4.6.4 Связи и зависимости
+Декларативное описание взаимодействия с другими элементами. В архитектуре Smart API связи подчиняются строгому правилу многослойности: элементы верхнего слоя могут зависеть только от элементов нижележащего слоя, но не наоборот.
 
-*There are no design constraints predefined in this standard. Many design techniques introduce design constraints.*
+### 4.7 Ограничения
+Технические, платформенные или логические лимиты, накладываемые на элемент.
 
-### 4.7 Design Overlays
-Design overlay usually used to add information to the existing views. This concept will be explained clearly when necessary in the design viewpoints section which is 5.
+## 5. Архитектурные точки зрения
+В данном разделе приведено детальное описание архитектуры и дизайна системы Smart API через призму специализированных ракурсов (Viewpoints) в соответствии со стандартом IEEE Std 1016-2009. Каждый ракурс изолированно отвечает на конкретный набор инженерных и эксплуатационных вопросов.
+### 5.1 Точка зрения композиции системы
 
-### 4.8 Design Rationale
-*How is the program designed? Don't go into detail, just explain the higher level concepts.*
+### 5.1.1 Архитектурные проблемы и задачи
+Данный ракурс декомпозиции решает ключевые проблемы программистов, архитекторов и DevOps-инженеров, связанные со структурной организацией кодовой базы:
 
-### 4.9 Design Languages
-In this document Unified Modeling Language (UML) will be used as the modeling language for the diagrams. The modeling language is used for emphasising the static structure and dynamic behaviour of the system.
+  a) Управление сложностью системы: Разделение крупного программного комплекса на логические модули и физические каталоги для обеспечения параллельной разработки.
 
-*Are there any other languages that will be used to explain the design?*
+  b) Повторное использование кода и изоляция зависимостей: Обеспечение модульности, при которой инфраструктурные конфигурации изолированы от ядра бизнес-логики.
 
-## 5. Design Viewpoints
-### 5.1 Introduction
-This section provides several main design viewpoints of *product name* with their corresponding design concerns and appropriate design languages. Respectively, context, composition, logical, dependency, information, patterns, interface structure and interaction viewpoints are defined in the following subsections. Short descriptions relating a minimal set of design entities, design relationships design entity attribute, and design constraints are provided for each viewpoint.
+  c) Оркестрация сред развертывания: Фиксация границ контейнеризации приложения для идентичного воспроизведения сред (разработка, тестирование, продакшен).
 
-### 5.2 Context Viewpoints
-The context viewpoints of *product name* show the functions provided by a design subject with reference to an explicit context. The services are the functions, which describes the relationships, dependencies, and interactions between the system and its environment like users and other stakeholders.
+### 5.1.2 Элементы дизайна
+Физическая иерархия каталогов и файлов репозитория Smart API разбита на три независимых композиционных подсистемы (кластера):
+
+### 5.1.2.1 Подсистема 1: Корневая структура и оркестрация платформы
+Включает в себя конфигурационное ядро веб-платформы Django (SmartApi/) и конфигурационные файлы инфраструктуры развертывания.
+
+  a) Элемент SmartApi/ (api.Infrastructure.FrameworkCore):
+
+    Тип: Конфигурационный пакет (Django Project Core).
+
+    Назначение: Управление конфигурацией платформы, маршрутизация входящих пакетов к дочернему приложению api, определение глобальных настроек безопасности и подключения к шинам данных.
+
+    Состав: __init__.py, asgi.py (асинхронная точка входа), wsgi.py (синхронная точка входа), settings.py (глобальные настройки), urls.py (корневой маршрутизатор).
+
+    Связи: Считывает параметры из внешних переменных среды .env, делегирует обработку эндпоинтов на api/urls.py.
+
+    Ограничения: Исключает содержание прикладной бизнес-логики СКУД.
+
+  b) Элементы .env.example, docker-compose.prod.yml, docker-compose.test.yml, requirements.txt:
+
+    Тип: Артефакты DevOps и декларации окружения.
+
+    Назначение: Оркестрация изолированных контейнеров (СУБД, MQTT-брокер) и фиксация версий библиотек.
+### 5.1.2.2 Подсистема 2: Архитектурные слои ядра приложения
+### 5.1.2.2.1 Спецификация элементов пакета api.Controller.access
+  a) Инициализатор пакета (__init__.py):
+
+    Тип: Управляющий файл пакета.
+
+    Назначение: Инкапсулирует внутреннюю структуру файлов модуля access. Экспортирует строго определенный массив контроллеров __all__, скрывая от внешних пакетов детали реализации и внутренние импорты.
+
+  b) CodesController:
+
+    Тип: Класс контроллера (наследник BaseController).
+
+    Зависимости: Сервис api.Service.CodesService, сериализатор api.serializers.CodesSerializer.
+
+    Поведение: Переопределяет базовые методы create() и update() для REST-эндпоинтов, внедряя схемы автоматического документирования swagger_auto_schema.
+
+  c) PrivacyConsentsController:
+
+    Тип: Компонент обработки запросов (наследник rest_framework.views.APIView).
+
+    Зависимости: Сервис api.Service.UsersPrivacyConsentsService.
+
+    Поведение: Реализует метод post() для фиксации согласия пользователя. Самостоятельно извлекает метаданные HTTP-сессии (IP-клиента через парсинг HTTP_X_FORWARDED_FOR / REMOTE_ADDR и HTTP_USER_AGENT), валидирует наличие Keycloak UUID (request.user.sub) и передает чистые параметры на слой сервиса.
+
+  d) TagsController:
+
+    Тип: Класс контроллера (наследник BaseController).
+
+    Зависимости: Сервис api.Service.TagsService, сериализатор api.serializers.TagsSerializer.
+
+    Поведение: Расширяет стандартный CRUD дополнительными экшенами (@action): add_user_tags (привязка физического ключа к помещению/квартире), check_tag (верификация владения), unbind_user_tag (деассоциация ключа) и update_tag_name (изменение пользовательской метки).
+
+  e) TagsUploadController:
+
+    Тип: Изолированный компонент обработки файлов (наследник APIView).
+
+    Зависимости: Сервис api.Service.TagsService.
+
+    Поведение: Спроектирован обособленно от TagsController для предотвращения конфликтов автогенерации схем drf-yasg. Использует парсеры MultiPartParser и FormParser для захвата бинарных потоков (request.FILES), валидирует расширения файлов (.xlsx, .xls) и делегирует пакетную обработку сервисному методу upload_keys_from_excel.
+
+  f) UserCodesController & UserTagsController:
+
+    Тип: Контроллеры контекстных запросов клиента (наследники BaseController / APIView).
+
+    Поведение: Реализуют методы получения, валидации и удаления идентификаторов (кодов/тегов), привязанных к конкретным жилым или коммерческим площадям, принимая списки идентификаторов через query-параметры facility_id (с поддержкой comma-separated списков).
+
+  g) UsersController:
+
+    Тип: Класс контроллера управления субъектами (наследник BaseController).
+
+    Зависимости: Сервис api.Service.UsersService, сериализатор api.serializers.UsersSerializer.
+    
+### 5.1.2.2.2 Спецификация элементов подпакета api.Controller.app_settings
+  a) Инициализатор пакета (app_settings/__init__.py): Управляющий файл пакета, определяющий единственный публичный интерфейс модуля — класс AppSettingsController.
+
+  b) AppSettingsController:
+
+    Тип: Класс REST-контроллера на базе viewsets.ViewSet.
+
+    Атрибуты и зависимости: Связан напрямую с ORM-моделью api.Models.AppSettings и сериализатором api.serializers.AppSettingsSerializer.
+
+    Политика безопасности: Использует класс разрешений AllowAny, обеспечивая публичный, неавторизованный доступ к конфигурационным данным для клиентских приложений (мобильные приложения, IP-домофония).
+
+    Поведение: Предоставляет три специализированных метода чтения конфигураций:
+
+    list() — осуществляет выборку и маппинг актуальных версий клиентского ПО (android_version, ios_version) и версии текущей политики конфиденциальности (privacy-version).
+
+    get_stun_settings() — извлекает параметры подключения к STUN-серверу (medianat, stun_server, stun_username, stun_password) для обеспечения обхода NAT при установке медиа-соединений. Возвращает HTTP_404_NOT_FOUND, если записи в БД отсутствуют.
+
+    get_sip_settings() — использует поиск по маске (name__istartswith='sip') для динамического извлечения всех параметров IP-телефонии SIP, сохраненных в системе.
+
+### 5.1.2.2.3 Спецификация элементов подпакета api.Controller.base
+  a) Инициализатор пакета (base/__init__.py): Задает явные границы видимости общих компонентов, экспортируя наружу через массив __all__ исключительно класс BaseController.
+
+  b) BaseController:
+
+    Тип: Абстрактный базовый класс на основе rest_framework.viewsets.ViewSet.
+
+    Назначение: Предоставляет унифицированную инфраструктурную заготовку для реализации типовых CRUD-интерфейсов REST API, связывая методы диспетчеризации DRF с интерфейсными методами сервисного слоя.
+
+    Ключевые атрибуты:
+
+      service (дефолтное значение: None) — ссылка на соответствующий доменный класс из слоя Service, выполняющий бизнес-логику.
+
+      serializer_class (дефолтное значение: None) — сериализатор DRF, используемый для валидации и автодокументирования.
+
+      schema — экземпляр AutoSchema() для автоматического формирования OpenAPI-контрактов СКУД.
+
+    Поведение и операции:
+    
+      * list(request) — запрашивает полный список записей через self.service.all() и возвращает их в теле HTTP-ответа со статусом 200 OK.
+
+      retrieve(request, pk) — осуществляет точечную выборку объекта по первичному ключу через self.service.get(pk).
+
+      create(request) — передает входящий десериализованный массив данных request.data в метод self.service.create() и генерирует ответ со статусом 201 Created.
+
+      update(request, pk) — транслирует обновленные данные на сервис через self.service.update(pk, request.data).
+
+      destroy(request, pk) — инициирует удаление сущности через вызов self.service.delete(pk), возвращая пустой ответ со статусом 204 No Content.
+
+### 5.1.2.2.4 Спецификация элементов подпакета api.Controller.buildings
+  a) Инициализатор пакета (buildings/__init__.py): Управляющий файл пакета, инкапсулирующий его внутреннюю файловую структуру и экспортирующий во внешний контур через __all__ строго четыре контроллера инфраструктурного домена.
+
+  b) BuildingGroupsController:
+
+    Тип: Класс REST-контроллера СКУД (наследник BaseController).
+
+    Связи: Зависит от сервиса BuildingGroupsService и сериализатора BuildingGroupsSerializer. Наследует всё CRUD-поведение. Переопределяет create и update исключительно для наложения схем валидации и документирования параметров групп объектов недвижимости.
+
+  c) BuildingGroups_BuildingsController:
+
+    Тип: Класс REST-контроллера СКУД (наследник BaseController).
+
+    Связи: Зависит от сервиса BuildingGroups_BuildingsService и сериализатора BuildingGroups_BuildingsSerializer.
+
+    Назначение: Обслуживает связующие эндпоинты для явного сопоставления конкретных физических зданий с логическими группами (например, для разграничения прав доступа персонала или пакетного управления устройствами).
+
+  d) BuildingsController:
+
+    Тип: Класс REST-контроллера СКУД (наследник BaseController).
+
+    Связи: Зависит от сервиса BuildingsService и сериализатора BuildingsSerializer. Реализует CRUD-интерфейс для физических корпусов и строений, подключенных к системе автоматизации.
+
+  e) ZonesController:
+
+    Тип: Класс REST-контроллера СКУД (наследник BaseController).
+
+    Связи: Зависит от сервиса ZonesService и сериализатора ZonesSerializer. Отвечает за прием и маршрутизацию сетевых запросов создания, редактирования и удаления зон доступа (территориальных сегментов внутри зданий, защищенных контроллерами или считывателями).
+
+### 5.1.2.2.5 Спецификация элементов подпакета api.Controller.calls
+  a) Инициализатор пакета (calls/__init__.py): Управляющий файл пакета, задающий границы видимости компонента телефонии и экспортирующий наружу через массив __all__ класс UserMissedCallsController.
+
+  b) UserMissedCallsController:
+
+    Тип: Класс REST-контроллера на базе rest_framework.views.APIView. В отличие от пакетов access и buildings, наследуется от базового класса представлений DRF напрямую, поскольку реализует кастомный не-CRUD интерфейс чтения данных.
+
+    Политика безопасности: Применяет permission_classes = [IsAuthenticated], закрывая доступ для неавторизованных сессий и генерируя статус 401 Unauthorized при отсутствии валидного JWT-токена.
+
+    Зависимости: Инициализирует во внутреннем защищенном свойстве self._missed_calls_service экземпляр доменного сервиса api.Service.MissedCallsService.
+
+    Поведение: Реализует единственный HTTP-метод чтения get(self, request):
+
+      Осуществляет проверку наличия идентификатора пользователя Keycloak в токене (request.user.sub).
+
+      Извлекает SIP-аккаунт абонента (request.user.get('sip_login')) для передачи контекста телефонии Asterisk на нижележащий слой.
+
+      Считывает query-параметры limit (ограничение размера выборки) и offset (смещение начала выборки).
+
+      Делегирует построение ответа методу self._missed_calls_service.list_for_user_uuid().
+
+      Перехватывает исключения ValueError, генерируемые сервисом при валидации параметров пагинации, и транслирует их клиенту в виде структурированного сообщения со статусом 400 Bad Request.
+
+### 5.1.2.2.6 Спецификация элементов подпакета api.Controller.cameras
+  a) Инициализатор пакета (cameras/__init__.py): Задает границы видимости подсистемы стриминга, экспортируя наружу через массив __all__ два класса контроллеров: CamerasDataController и UserCamerasController.
+
+  b) CamerasDataController:
+
+    Тип: Класс REST-контроллера СКУД (наследник BaseController).
+
+    Связи: Ассоциирован с доменным сервисом CamerasDataService и сериализатором CamerasDataSerializer.
+
+    Поведение: Наследует стандартный CRUD базового класса. Переопределяет create и update для интеграции схем документации drf_yasg. Содержит расширенный метод-экшен:
+
+      set_archive_duration(request, pk) — обрабатывает HTTP-метод PATCH по роуту set-archive-duration. Проверяет входящий тип данных (строка archive_duration, например, '10m', '2h'). При валидности параметров вызывает CamerasDataService().set_archive_duration(pk, archive_duration) для фиксации изменений в СУБД и обновления конфигурации циклической перезаписи на стороне медиасервера MediaMTX. При ошибках валидации возвращает статус 400 Bad Request.
+
+  c) UserCamerasController:
+
+    Тип: Класс REST-контроллера СКУД (наследник BaseController).
+
+    Связи: Конфигурирует экземпляр сервиса UserCamerasService().
+
+    Поведение: Переопределяет стандартный экшен чтения list(request) для построения безопасной пользовательской выборки:
+
+      Выполняет проверку авторизации сессии (request.user.is_authenticated), возвращая 401 Unauthorized в случае отсутствия токена.
+
+      Извлекает Keycloak UUID пользователя из свойства request.user.sub.
+
+      Вызывает сервисный метод get_user_cameras(user_sub) для формирования сгруппированного ответа. Камеры распределяются по именованным логическим группам (CamerasGroups), а устройства без явных привязок агрегируются в виртуальный контейнер «Камеры без группы» с зарезервированным идентификатором 9999.
+
+### 5.1.2.2.7 Спецификация элементов подпакета api.Controller.devices
+  a) Инициализатор пакета (devices/__init__.py): Управляющий файл пакета оборудования, экспортирующий во внешний контур через массив __all__ строго пять классов контроллеров. Осуществляет корректный маппинг физического файла UserDeviceController.py на экспортируемый класс UserDevicesController.
+
+  b) DeviceModelsController:
+
+    Тип: Класс REST-контроллера (наследник BaseController).
+
+    Связи: Напрямую ассоциирован с сервисом DeviceModelsService и сериализатором DeviceModelsSerializer.
+
+    Назначение: Обеспечивает стандартный CRUD-интерфейс над справочником моделей/марок оборудования, накладывая спецификации автодокументирования swagger_auto_schema на методы создания и обновления.
+
+  c) DevicesController:
+
+    Тип: Класс REST-контроллера (наследник BaseController).
+
+    Связи: Ассоциирован с сервисом DevicesService и сериализатором DevicesSerializer.
+
+    Поведение: Наследует CRUD-логику. Переопределяет метод list(self, request, *args, kwargs) для административной панели: вместо стандартной выборки обращается к специализированному методу self.service().get_all_devices(), который формирует денормализованный или обогащенный список всех физических единиц оборудования в системе.
+
+  d) IntercomsDataController:
+
+    Тип: Класс REST-контроллера (наследник BaseController).
+
+    Связи: Ассоциирован с сервисом IntercomsDataService и сериализатором IntercomsDataSerializer. Обслуживает операции над специфичными параметрами IP-домофонов (IP-адреса, логины, RTSP-ссылки потоков, привязки к реле).
+
+  e) ReadersController:
+
+    Тип: Класс REST-контроллера (наследник BaseController).
+
+    Назначение: Предоставляет API-интерфейс для конфигурирования считывателей RFID/ПИН-кодов, установленных на точках прохода (дверях, калитках, шлагбаумах).
+
+  f) UserDevicesController:
+
+    Тип: Класс REST-контроллера (наследник BaseController).
+
+    Связи: Использует общий сервис DevicesService и сериализатор DevicesSerializer.
+
+    Поведение: Переопределяет метод чтения списка list(self, request) для нужд абонентских мобильных приложений. Проверяет авторизацию сессии (request.user.is_authenticated), извлекает строковый идентификатор Keycloak UUID (request.user.sub) и вызывает метод self.service().get_user_devices(user_sub). Это гарантирует, что обычный пользователь получит доступ только к тем физическим устройствам, к помещениям которых он привязан в СКУД. В случае отсутствия токена возвращает ответ со статусом 401 Unauthorized.
+
+### 5.1.2.2.8 Спецификация элементов подпакета api.Controller.entrances
+  a) Инициализатор пакета (entrances/__init__.py): Управляющий файл исполнительного домена. Определяет жесткие границы экспорта публичного интерфейса подсистемы, регистрируя в массиве __all__ ровно семь специализированных контроллеров.
+
+  b) EntranceGroupsController / EntranceGroups_EntrancesController / EntranceGroups_UsersController / Entrances_UsersController:
+
+    Тип: Классы REST-контроллеров, унаследованные от BaseController.
+
+    Поведение: Полноценно используют инфраструктурный каркас базового класса для автоматического развертывания CRUD-операций. Классы переопределяют методы create и update исключительно для наложения декораторов @swagger_auto_schema соответствующих доменных сериализаторов, что обеспечивает корректную генерацию интерактивной документации OpenAPI. Обслуживают структуры привязок оборудования к зонам, группам и профилям жильцов.
+
+  c) EntrancesController:
+
+    Тип: Административный REST-контроллер (наследник BaseController).
+
+    Поведение: Наследует CRUD-логику изменения конфигураций точек прохода. Переопределяет метод list(self, request, *args, kwargs) для нужд диспетчерской панели. Метод извлекает user_sub (если сессия авторизована) и запрашивает обогащенный список всех зарегистрированных входов СКУД через сервисный вызов self.service().get_all_entrances(user_sub=user_sub).
+
+  d) UserEntrancesController:
+
+    Тип: Клиентский REST-контроллер (наследник BaseController).
+
+    Поведение: Фокусируется на обеспечении интерфейса мобильных приложений. Переопределяет логику чтения, объявляя кастомный экшен user_entrances(self, request). Проверяет статус аутентификации, считывает Keycloak UUID (request.user.sub) и запрашивает от EntrancesService строго изолированный перечень дверей, к которым у данного конкретного токена есть легитимный доступ. При сбое проверки авторизации возвращает статус 401 Unauthorized.
+
+  e) OpenEntranceController:
+
+    Тип: Исполнительный контроллер прямого действия на базе rest_framework.views.APIView.
+
+    Политика безопасности: Использует permission_classes = [IsAuthenticated].
+
+    Зависимости: Ассоциирован с сервисным слоем управления оборудованием api.Service.DevicesService. Активно использует ORM-модели Entrances и Users для выполнения внутренних диагностических процедур и логирования.
+
+    Поведение: Реализует HTTP-метод get(self, request) для инициации открытия замков:
+
+      Извлекает из query-параметров строку entrance_ids (принимает список идентификаторов через запятую, например, "1,2,5"), парсит её и валидирует. При отсутствии параметров возвращает ошибку 400 Bad Request.
+
+      Извлекает UUID пользователя (request.user.sub) и сопоставляет его с внутренним числовым идентификатором Users.objects.get().
+
+      Вызывает метод DevicesService().open_doors_by_entrances(entrance_ids), который транслирует команду на физические реле контроллеров доступа.
+
+      Производит сборку диагностической информации (запрашивает связанные объекты select_related("device")), формирует детальный текстовый отчет по каждой точке прохода и фиксирует структурированный лог результата операции.
+
+      Если ни одно из целевых устройств не ответило успехом, возвращает 400 Bad Request с детализацией ошибки. При успешном срабатывании хотя бы одного реле возвращает статус 200 OK с массивом результатов выполнения. При непредвиденных системных сбоях изолирует ошибку и отдает 500 Internal Server Error.
+
+### 5.1.2.2.9 Спецификация элементов подпакета api.Controller.facilities
+  a) Инициализатор пакета (facilities/__init__.py): Управляющий файл домена жилого фонда. Задает границы видимости компонента недвижимости, экспортируя во внешний контур через массив __all__ строго четыре класса контроллеров.
+
+  b) FacilitiesController:
+
+    Тип: Административный REST-контроллер (наследник BaseController).
+
+    Связи: Напрямую ассоциирован с сервисом FacilitiesService и сериализатором FacilitiesSerializer.
+
+    Назначение: Обеспечивает стандартный CRUD-интерфейс над общим реестром жилых и коммерческих помещений (создание, удаление, просмотр параметров квартир), переопределяя методы create и update под метаданные схем Swagger.
+
+  c) Facilities_DevicesController:
+
+    Тип: Связующий REST-контроллер (наследник BaseController).
+
+    Связи: Ассоциирован с сервисом Facilities_DevicesService и сериализатором FacilitiesDevicesSerializer.
+
+    Назначение: Предоставляет API для управления связями «многие-ко-многим» между помещениями и оконечными физическими устройствами (абонентскими трубками домофонов, внутренними терминалами).
+
+  d) Facilities_UsersController:
+
+    Тип: Связующий REST-контроллер (наследник BaseController).
+
+    Связи: Ассоциирован с сервисом Facilities_UsersService и сериализатором Facilities_UsersSerializer.
+
+    Назначение: Реализует API администрирования прав владения/проживания, связывая аккаунты жильцов (Users) с конкретными физическими объектами недвижимости (Facilities).
+
+  e) UserFacilitiesController:
+
+    Тип: Клиентский контроллер на базе rest_framework.views.APIView.
+
+    Политика безопасности: Использует класс разрешений permission_classes = [IsAuthenticated].
+
+    Связи: Делегирует исполнение запросов доменному сервису FacilitiesService.
+
+    Поведение: Реализует HTTP-метод чтения get(self, request):
+
+      Проверяет статус аутентификации текущей сессии (request.user.is_authenticated). При сбое возвращает структурированный ответ со статусом 401 Unauthorized.
+
+      Извлекает безопасный строковый идентификатор Keycloak UUID (request.user.sub) из токена.
+
+      Вызывает метод self.service().get_user_facilities(user_uuid) для получения изолированного списка квартир, привязанных к данному пользователю. Выходной массив сериализуется с помощью FacilitiesSerializer(many=True).
+
+### 5.1.2.2.10 Спецификация элементов подпакета api.Controller.integrations
+  a) Инициализатор пакета (integrations/__init__.py): Управляющий файл интеграционного слоя. Формирует изолированный фасад подсистемы, экспортируя через массив __all__ семь специализированных классов контроллеров.
+
+  b) AsteriskGroupController:
+
+    Тип: Интеграционный контроллер (viewsets.ViewSet).
+
+    Связи: Задействует AsteriskGroupService и AsteriskExtensionsSyncService.
+
+    Назначение: Фоновое управление диапланом и вызывными группами IP-АТС Asterisk.
+
+    Методы: sync_groups (фоновая генерация номеров по маске 1xxxxxxxxyyyyyyyy на основе идентификаторов зданий и номеров квартир с постобработкой через fetch-запросы); sync_extensions (сверка маппингов внутренних номеров и Keycloak-логинов).
+
+  c) BillingController:
+
+    Тип: Шлюз синхронизации и обработки событий биллинга (viewsets.ViewSet).
+
+    Политика безопасности: Требует обязательной авторизации (IsAuthenticated).
+
+    Связи: Взаимодействует с Billing_to_KeycloakService и BillingService.
+
+    Назначение: Автоматизация жизненного цикла учетных записей на основе финансовых событий (создание, удаление, привязка лицевых счетов пользователей в фоне).
+
+  d) DevicesSyncController:
+
+    Тип: Инфраструктурный контроллер (viewsets.ViewSet).
+
+    Связи: Делегирует задачи сервису DevicesToFreePBXSyncService.
+
+    Назначение: Обеспечивает асинхронный экспорт аппаратных учетных записей IP-домофонов во FreePBX в качестве SIP-эндпоинтов.
+
+  e) FacilitySynchronizeController:
+
+    Тип: Точечный реактивный оркестратор (viewsets.ViewSet).
+
+    Политика безопасности: Доступен только авторизованным операторам (IsAuthenticated).
+
+    Связи: Работает через сквозной сервис FacilitiesService.
+
+    Назначение: Предоставляет API для таргетной принудительной синхронизации связей жилья и SIP-параметров по id, uuid, username или device_id.
+
+  f) KeycloakSyncController:
+
+    Тип: Синхронизатор слоя безопасности (viewsets.ViewSet).
+
+    Связи: Напрямую вызывает KeycloakToFreePBXSyncService.
+
+    Назначение: Выполняет фоновый экспорт пользовательских учетных записей и их сгенерированных SIP-паролей из Keycloak напрямую во FreePBX.
+
+  g) MediaMtxSynchronizeController:
+
+    Тип: Контроллер мультимедийного контура и стриминга (viewsets.ViewSet).
+
+    Связи: Взаимодействует с MediaMtxSynchonizeService и MediaMtxArchiveService.
+
+    Назначение: Интеграция с видеосервером MediaMTX (автоматическая регистрация RTSP-потоков домофонов, валидация прав пользователя на доступ к камерам и выдача HLS-ссылок на видеоархив с дополнением ID до 8 знаков).
+
+  h) PjsipRealtimeController:
+
+    Тип: Низкоуровневый инфраструктурный контроллер на базе rest_framework.views.APIView.
+
+    Связи: Взаимодействует напрямую с PjsipRealtimeService и сериализатором PjsipEndpointCreateSerializer.
+
+    Назначение: Обеспечивает синхронное создание и конфигурацию учетных записей SIP-абонентов непосредственно во внешней схеме данных Asterisk Realtime.
+
+    Поведение: Реализует HTTP-метод post(self, request):
+
+      Проводит валидацию входящего тела запроса с помощью PjsipEndpointCreateSerializer (поля username, password, context, transport, max_contacts, allow, disallow, direct_media). При ошибках возвращает статус 400 Bad Request.
+
+      Передает валидированные параметры в self._service.create_sip_user(data). Сервис выполняет атомарную вставку связанных строк в системные таблицы телефонии ps_aors, ps_auths и ps_endpoints, используя переданный username в качестве уникального ключа id.
+
+      Содержит выделенные блоки обработки исключений (Exceptions):
+
+        PjsipEndpointAlreadyExists: возвращает структурированный ответ о занятости логина со статусом 409 Conflict.
+
+        PyMySQLOperationalError: перехватывает сбои подключения к MariaDB (база asterisk). Если выставлен флаг settings.DEBUG, возвращает сырой текст ошибки, в противном случае — скрывает системные уязвимости и выдает безопасное сообщение "Ошибка подключения или SQL к БД asterisk..." со статусом 503 Service Unavailable.
+
+        Exception: перехватывает сквозные непредвиденные ошибки, возвращая статус 500 Internal Server Error.
+
+        При успешном выполнении возвращает тело ответа {"id": result.id, "created": result.created} со статусом 201 Created.
+
+### 5.1.2.2.11 Спецификация элементов подпакета api.Controller.notifications
+  a) Инициализатор пакета (notifications/__init__.py): Файл инициализации, инкапсулирующий структуру каталога и экспортирующий наружу класс NotificationsController и служебные сериализаторы.
+
+  b) NotificationsController:
+
+    Тип: Доменный контроллер на базе класса viewsets.ViewSet.
+
+    Политика безопасности: Требует обязательной авторизации пользователя (permission_classes = [IsAuthenticated]).
+
+    Связи: Ассоциирован со сквозным бизнес-сервисом NotificationsService и вспомогательным модулем трансляции типов данных api.Service.notifications.mapping.
+
+    Назначение: Предоставляет клиентский и системный интерфейсы управления уведомлениями, алертами и пуш-сообщениями в рамках платформы.
+
+    Реализуемые методы и логика:
+
+      send(self, request) — Императивный метод отправки уведомления конкретному адресату. Валидирует входные параметры (user_id, title, text, флаги важности is_alert и is_permanent) через SendNotificationRequestSerializer. Делегирует отправку сервису. При успешном создании возвращает метаданные операции и статус 201 Created.
+
+      change_status(self, request) — Клиентский метод смены статуса конкретного сообщения (перевод в readed, delivered, closed). Валидирует параметры через ChangeStatusRequestSerializer. Извлекает user_uuid текущей сессии через request.user.sub для исключения несанкционированного доступа (IDOR). Возвращает обновленную сущность, приводя даты изменений к единому UTC-формату строк с помощью хелпера mapping.format_datetime_utc.
+
+      open(self, request) — Возвращает массив всех текущих незакрытых (closed_at IS NULL) оповещений для авторизованного пользователя на основе его user_uuid. Список сериализуется в JSON-структуру с помощью спискового включения и вызова mapping.user_notifications_to_dict.
+
+      unread(self, request) — Возвращает список только непрочитанных и незакрытых уведомлений (read_at IS NULL). Фильтрация выполняется на уровне сервисного слоя по переданному user_uuid текущей сессии.
+
+      latest_alert(self, request) — Возвращает последнее актуальное критическое оповещение (is_alert=True). Метод обрабатывает специфическое бизнес-правило: если алерт помечен как постоянный (is_permanent=True), он продолжает возвращаться клиенту даже после фиксации прочтения. При отсутствии активных алертов возвращает пустой ответ со статусом 204 No Content.
+
+### 5.1.2.3 Спецификация пакетов слоя инфраструктуры
+### 5.1.2.3.1 Детальная спецификация компонентов подпакета db
+  a) asterisk_connection
+  
+    Тип элемента: Инфраструктурный шлюз / Фабрика (Factory Pattern).
+
+    Связи и зависимости: Импортирует низкоуровневый драйвер pymysql, системный модуль os и константы сетевых адресов из api.constants.
+
+    Реализуемые методы и внутренняя логика:
+
+      get_asterisk_mysql_using_app_db_env() — Режим совмещенной инфраструктуры. Применяется на тестовых стендах или небольших объектах, где таблицы телефонии Asterisk (ps_*) и таблицы ядра Smart API сосуществуют на одном сервере MariaDB. Метод динамически считывает переменные DB_HOST, DB_USER, DB_PASSWORD и DB_PORT, но принудительно переопределяет имя целевой схемы данных на 'asterisk'. Это снижает затраты на поддержку лишних инстансов СУБД.
+
+      get_asterisk_mysql_using_asterisk_env() — Режим изолированного продакшен-контура. Применяется в отказоустойчивых распределенных системах. Инициализирует подключение на основе изолированных целевых констант ASTERISK_DB_HOST, ASTERISK_DB_USER, ASTERISK_DB_PASSWORD, ASTERISK_DB_NAME и ASTERISK_DB_PORT, позволяя физически и на уровне сетевых доступов (firewall) разносить сервер связи и сервер веб-приложений.
+
+  b) table_sync
+  
+    Тип элемента: Автономный системный процессор (System Maintenance Processor).
+
+    Связи и зависимости: Напрямую взаимодействует с метаданными слоя моделей (api.Models.*) через мета-интерфейсы Django (django.apps.apps), низкоуровневый редактор схем connection.schema_editor() и дескрипторы полей.
+
+### 5.1.2.3.2 Детальная спецификация компонентов подпакета DevicesDrivers
+  a) __init__
+  
+    Тип элемента: Инициализатор пакета драйверов.
+
+    Область ответственности: Критическая точка инициализации. Файл принудительно осуществляет импорт конкретных драйверов СКУД и домофонии (from . import RubetekRV3434Device, from . import RubetekRACS1101Device) с подавлением предупреждений линтера (# noqa: F401). Это гарантирует выполнение декораторов @register_driver в момент старта приложения, предотвращая ошибку пустого реестра при вызове фабрики.
+
+  b) AbstractDevice
+  
+    Тип элемента: Абстрактный базовый класс (abc.ABC).
+
+    Область ответственности: Определение обязательного программного контракта для всех типов физических устройств СКУД и домофонии. Принимает доменную ORM-модель устройства в конструкторе (self.device = device_model), обеспечивая доступ к сетевым реквизитам (IP-адрес, URL, логин, пароль) для конкретного инстанса оборудования.
+
+    Методы:
+
+      open_door(relay_id: int) -> tuple[bool, str]: Принудительный триггер на открытие исполнительного реле точки прохода.
+
+      sync_keys(keys: list) -> dict: Синхронизация пула ключей/идентификаторов доступа из базы данных в физическую память устройства.
+
+  c) registry
+  
+    Тип элемента: Диспетчер зависимостей (Registry / Factory Pattern).
+
+    Внутреннее состояние: Скрытый словарь _drivers_registry = {}, где ключом выступает коммерческое наименование модели оборудования (строка), а значением — класс конкретного драйвера.
+
+    Реализуемые интерфейсы и логика:
+
+      Декоратор register_driver(model_name): Динамически регистрирует класс драйвера в словаре _drivers_registry в момент импорта модуля.
+
+      Фабричный метод get_device_driver(device_model): Принимает инстанс устройства из БД, считывает его строковое представление модели (device_model.model.model), извлекает соответствующий класс из реестра и возвращает инициализированный объект драйвера.
+
+  d) RubetekRACS1101Device
+  
+    Тип элемента: IoT-драйвер (MQTT Client / JSON-RPC Protocol Adapter).
+
+    Связи и зависимости: Наследует AbstractDevice. Использует библиотеки paho.mqtt.client и глобальные константы адреса брокера MQTT_BROKER_HOST.
+
+    Алгоритмическая логика:
+
+      Метод open_door(relay_id=1) (Синхронный RPC поверх MQTT): Извлекает UUID из URL устройства. Формирует топики запроса (/requests) и ответов (/responses). С помощью threading.Event() блокирует вызывающий поток на wait(timeout=5). Публикует JSON-RPC 2.0 запрос с методом unlock. Фоновый коллбек on_message проверяет входящий UUID, разблокирует событие и возвращает статус выполнения.
+
+      Метод sync_keys (Каскадная пакетная синхронизация): Из-за аппаратных особенностей контроллера RACS метод _normalize_tag дополняет теги нулями до 14 символов, а _reverse_tag_bytes осуществляет побайтовый переворот hex-строки (компенсация Endianness считывателей). Отправляет команду del_all_keys, а затем разбивает массив ключей на пакеты (MAX_KEYS_PER_REQUEST = 50) и последовательно отправляет их командами add_keys с задержкой time.sleep(0.1).
+
+  e) RubetekRV3434Device
+  
+    Тип элемента: Конкретный IoT-драйвер (HTTPS / REST Client Adapter).
+
+    Связи и зависимости: Наследует AbstractDevice. Использует библиотеку requests и модуль urllib3 для подавления варнингов SSL.
+
+    Алгоритмическая логика:
+
+      Метод open_door(relay_id): Выполняет синхронный HTTPS POST-запрос на /api/v1/doors/{relay_id}/open с Basic-авторизацией. Обрабатывает ошибку HTTP 423 (если на панели включен режим свободного прохода, операция признается успешной).
+
+      Метод sync_keys (Синхронизация абонентской логики): Преобразует тип связи в понятный панели call_type. Для координатных систем (direct) вычисляет аналоговый номер через _process_analog_number (num_aux % 256). Смещает номера реле, адаптируя сквозные ID системы к плате панели. Формирует JSON и отправляет POST-запрос на /api/v1/apartments.
+
+      Методы очистки и кодов: sync_codes досылает цифровые коды вызова квартиры, а delete_all_apartments пачками по 180 записей производит каскадное удаление старых жильцов во избежание переполнения буфера веб-сервера домофона.
+
+ f) MediaMtxDriver
+ 
+    Тип элемента: Шлюз интеграции видеостриминга (Media Client Driver / API Gateway).
+
+    Связи и зависимости: Вызывается из сервисного слоя Django. Использует библиотеку requests и регулярные выражения re.
+
+    Область ответственности: Обеспечение связи между вызывными панелями и Flask-конфигуратором медиасервера.
+
+    Реализуемые методы и логика:
+
+      extract_ip_port(url): Вспомогательный метод парсинга сетевых адресов через регулярные выражения для выделения чистого IP-адреса хоста.
+
+      create_rtsp_user(...): Проверяет наличие на вызывной панели выделенной учетной записи для забора видеопотока. Выполняет GET-запрос на /api/v1/settings/account. Если пользователя с переданным stream_username нет, отправляет POST-запрос с payload { "account": ..., "password": ..., "role": "rtsp_user" }, создавая изолированный аккаунт для стриминга.
+
+      get_rtsp_url(...): Собирает каноническую авторизованную строку подключения к RTSP-трансляции панели для передачи в плееры или ретрансляторы: rtsp://user:pass@ip:554/channel1.
+
+      add_camera_to_mediamtx(cam_id, source_stream_url, archive_duration, mtx_api_url): Проксирует команду добавления камеры на Flask-микросервер (test_media_mtx_api.py), передавая в JSON сформированную RTSP-ссылку и настройки глубины архива.
+
+      remove_camera_from_mediamtx(cam_id, mtx_api_url): Отправляет HTTP DELETE запрос на Flask-микросервер для удаления камеры из конфигурации трансляций.
+
+g) test_media_mtx_api
+
+    Тип элемента: Инфраструктурный Sidecar-микросервис / Конфигурационный прокси (Proxy & Configuration Sidecar).
+
+    Среда выполнения: Выделенный легковесный контейнер на базе Python/Flask (порт 5001), развернутый непосредственно внутри инфраструктуры медиасервера и имеющий прямой доступ к его физическому диску.
+
+    Область ответственности: Обеспечение персистентности настроек путей MediaMTX (официальный стример при добавлении путей через API хранит их только в RAM до первой перезагрузки). Этот скрипт сохраняет настройки в YAML-файл и синхронизирует рантайм.
+
+    Контракты эндпоинтов и внутренняя логика:
+
+      POST /add/<camera_id>: Загружает конфигурационный файл /app/config/mediamtx.yml через yaml.safe_load(). Формирует блок настроек камеры: жестко форсирует транспорт rtspTransport: "tcp". Если передан валидный параметр archive_duration, прописывает ключ "recordDeleteAfter" (включение записи архива). Иначе выставляет "sourceOnDemand": True (стриминг только по требованию для экономии ресурсов). Записывает изменения обратно в файл (yaml.dump), а затем отправляет синхронный POST-запрос в живое ядро MediaMTX (http://smart-mediamtx:9997/v3/config/paths/add/<camera_id>), чтобы применить настройки «на лету» без перезапуска контейнера.
+
+      GET /list: Парсит YAML-файл конфигурации и возвращает плоский JSON-список всех активных камер (исключая технический дефолтный путь all_others).
+
+      DELETE /delete/<camera_id>: Удаляет указанный camera_id из блока paths в файле конфигурации и выполняет перезапись YAML-матрицы.
+
+### 5.1.2.3.3 Детальная спецификация компонентов подпакета integrations/keycloak
+  a) __init__
+  
+    Тип элемента: Экспортер интерфейсов.
+
+    Описание логики: Явно определяет публичный программный интерфейс подпакета с помощью конструкции __all__, изолируя внутреннее устройство модулей:
+  b) keycloak_auth
+
+    Класс KeycloakUser (Адаптер контекста безопасности)
+
+      Тип элемента: Адаптер (Adapter Pattern / Value Object).
+
+      Область ответственности: Мимикрия под стандартную модель пользователя Django (User) для обеспечения прозрачной совместимости со встроенной системой разграничения прав DRF (permissions.IsAuthenticated).
+
+      Реализуемая логика:
+
+        Инкапсуляция: Конструктор принимает и сохраняет в self.user_data JSON-дерево OIDC-клеймов от Keycloak.
+
+        Динамический доступ (__getattr__): При попытке обращения к свойству как к атрибуту (например, request.user.name) ищет ключ внутри словаря user_data. При отсутствии выбрасывает AttributeError.
+
+        Интерфейс словаря (get): Дублирует безопасный метод .get(key, default) для совместимости с кодом, рассчитывающим на работу со структурой dict.
+
+        Предикат авторизации (is_authenticated): Свойство (Property) всегда возвращает True, сообщая DRF, что пользователь успешно опознан.
+
+    Класс KeycloakTokenAuth (Провайдер аутентификации)
+
+      Тип элемента: Провайдер аутентификации DRF (Authentication Provider).
+
+      Связи и зависимости: Наследует rest_framework.authentication.TokenAuthentication. Использует библиотеку requests и глобальные константы KEYCLOAK_SERVER_URL, KEYCLOAK_REALM.
+
+      Алгоритм работы метода authenticate(request):
+
+        Извлекает HTTP-заголовок Authorization. Если он отсутствует или не начинается с Bearer , возвращает None, передавая запрос следующим бэкендам в цепочке.
+
+        Выделяет строковую часть JWT-токена.
+
+        Выполняет синхронный HTTP GET запрос к эндпоинту:
+          {KEYCLOAK_SERVER_URL}/realms/{KEYCLOAK_REALM}/protocol/openid-connect/userinfo с таймаутом 5 секунд.
+
+          Если статус ответа не равен 200, генерирует исключение AuthenticationFailed('Invalid token'). При падении сетевого сокета по таймауту оборачивает ошибку в AuthenticationFailed(f'Keycloak unavailable: {str(e)}').
+
+          При успешной валидации парсит JSON профиля, инициализирует объект KeycloakUser(user_data) и возвращает кортеж (KeycloakUser, None).
+
+c) ProtectedDataView
+
+    Тип элемента: Контроллер точки доступа (API Endpoint Controller / View).
+
+    Связи и зависимости: Наследует rest_framework.views.APIView. Напрямую зависит от контекста безопасности request.user, сформированного классом KeycloakTokenAuth.
+
+    Алгоритмическая логика метода get(request):
+      Метод предназначен для выгрузки текущей сессии авторизованного пользователя. Так как request.user является инстансом класса KeycloakUser, метод безопасно извлекает стандартные OIDC-клеймы и кастомные расширения СКУД/Телефонии через вызовы .get():
+
+### 5.1.2.3.4 Детальная спецификация компонентов подпакета push
+  a) __init__
+  
+    Тип элемента: Инициализатор пакета / Загрузчик зависимостей.
+
+    Описание логики: Обеспечивает необходимый архитектурный «побочный эффект». Принудительно импортирует модули всех конкретных провайдеров пушей:
+    
+  b) BasePushSender
+  
+    Тип элемента: Абстрактный базовый класс (abc.ABC).
+
+    Область ответственности: Определение базового программного интерфейса для всех транспортных систем пушей.
+
+    Интерфейсные свойства и методы:
+
+      Атрибут channel: str = "push" — строковый идентификатор типа канала (переопределяется в наследниках).
+
+      Абстрактный метод send(user_id: list[int], message: PushMessage) -> None — сигнатура метода отправки сообщения PushMessage (DTO из слоя Service) списку идентификаторов пользователей.
+
+  c) PushSenderRegistry
+  
+    Тип элемента: Фабричный реестр (Registry Pattern).
+
+    Внутреннее состояние: Приватный список _sender_classes: list[type] = [].
+
+    Реализуемые методы:
+
+      Декоратор register_push_sender(cls): Принимает класс отправителя, проверяет его отсутствие в списке во избежание дублирования, регистрирует его внутри _sender_classes и возвращает класс в исходном виде.
+
+      Метод get_push_sender_instances(): Фабричный метод. Инициализирует и возвращает список готовых объектов-сендеров ([cls() for cls in _sender_classes]) для использования вызывающими сервисами.
+
+  d) ApnsPushSender
+  
+    Тип элемента: Асинхронный IoT-драйвер (APNs HTTP/2 Client).
+
+    Связи и зависимости: Наследует BasePushSender. Зависит от сторонней асинхронной библиотеки aioapns, криптографического модуля OpenSSL.crypto и репозитория PushTokensRepository.
+
+    Ключевые особенности и алгоритмическая логика:
+
+      Monkey Patching библиотеки (Динамическое исправление): Пакет aioapns изначально не имеет встроенной поддержки паролей для зашифрованных PEM-сертификатов при вызове load_cert_chain. Модуль содержит функцию _apply_apns_cert_password_patch(), которая один раз при импорте подменяет метод __init__ пула соединений APNsCertConnectionPool на кастомный метод, учитывающий константу APNS_CERT_PASSWORD.
+
+      Синглтон клиента (_get_apns_client): Ленивая инициализация единственного экземпляра класса APNs. При отсутствии переданного APNS_TOPIC автоматически парсит PEM-сертификат через pyOpenSSL и вычитывает UID субъекта (например, com.gcom.smartapp) в качестве дефолтного топика.
+
+      Метод send(...): Извлекает из БД через репозиторий список пар (sip_address, token) по провайдеру "apns". Запускает асинхронный метод _send_apns_tokens через блокирующий рантайм asyncio.run(). Метод итерируется по записям, формирует структуру JSON-пакета aps (с текстом, заголовком и дефолтным звуком) и асинхронно отправляет через HTTP/2 сокет. Неудачные отправки логируются с обрезкой токена до первых 12 символов в целях безопасности.
+
+  e) FcmPushSender
+  
+    Тип элемента: Провайдер пакетной доставки (Firebase SDK Gateway).
+
+    Связи и зависимости: Наследует BasePushSender. Использует официальный firebase_admin SDK.
+
+    Алгоритмическая логика:
+
+      Инициализация приложения (_ensure_firebase_app): Проверяет глобальный реестр _apps. Если Firebase еще не инициализирован, считывает сервисный файл ключей по пути FCM_CREDENTIALS_PATH и выполняет инициализацию инстанса.
+
+      Метод send(...): Запрашивает сгруппированные токены пользователей. Извлекает массив токенов для ключа "fcm".
+
+      Пакетный чанкинг (Multicasting): В соответствии со спецификацией Firebase, максимальный размер массива для мультивещания ограничен. Метод разбивает плоский массив токенов на чанки по 500 штук (_FCM_MAX_MULTICAST = 500). Для каждого чанка формирует объект messaging.MulticastMessage с данными оповещения и принудительно выставляет приоритет NORMAL для Android-конфигурации. Отправка выполняется через современный метод send_each_for_multicast() (или резервный send_multicast). Результаты ответов атомарно проверяются на наличие внутренних исключений токенов.
+
+  f) HmsPushSender
+  
+    Тип элемента: Интеграционный REST-клиент (Huawei Push Kit HTTP API Gateway).
+
+    Связи и зависимости: Наследует BasePushSender. Выполняет прямые HTTP-запросы через библиотеку requests.
+
+    Алгоритмическая логика:
+
+      Авторизация OAuth 2.0 (_hms_access_token): Выполняет POST-запрос на сервер авторизации Huawei https://oauth-login.cloud.huawei.com/oauth2/v3/token с передачей пары grant_type="client_credentials", client_id и client_secret. Возвращает временный access_token.
+
+      Метод send(...): Получает HMS-токены целевых пользователей. Авторизуется и формирует URL отправки, содержащий HMS_APP_ID. В отличие от FCM, отправка выполняется в цикле последовательно для каждого токена (for t in tokens). Конструируется JSON-payload, в котором структура сообщения дублируется как в корневом объекте notification, так и в специфичном для платформы Android-блоке с флагом срочности "urgency": "NORMAL". Токен передается внутри массива "token": [t].
+
+### 5.1.2.4 Спецификация пакетов слоя api/management
+### 5.1.2.4.1 Детальная спецификация компонентов подпакета commands
+  a) ensure_api_tables
+  
+    Тип элемента: Консольная команда Django (BaseCommand).
+
+    Зависимости: Импортирует низкоуровневую функцию ядра ensure_api_tables из модуля api.Infrastructure.db.table_sync.
+
+    Аргументы командной строки (CLI Flags):
+
+      --database (str, default="default"): Задает алиас базы данных из словаря DATABASES в settings.py, к которой необходимо применить изменения.
+
+    Логика выполнения (handle):
+      Вызывает подсистему синхронизации таблиц. На основе метаданных моделей Django функция проверяет физическое наличие таблиц и колонок в СУБД. Процедура создает недостающие таблицы и безопасно добавляет новые не-критичные колонки. По завершении выводит агрегированную статистику в stdout: число созданных таблиц, добавленных колонок и пропущенных (небезопасных, например, NOT NULL без дефолта) столбцов. Если изменений нет, логирует статус SUCCESS.
+
+  b) send_maintenance_push
+  
+    Тип элемента: Консольная команда пакетной обработки.
+
+    Зависимости: Модели Users, PushSettings, UserNotification; фабрика реестра пушей api.Infrastructure.push.PushSenderRegistry.
+
+    Структура данных: Содержит внутренний локальный DTO PushMessage (@dataclass(frozen=True)) для упаковки заголовка и текста.
+
+    Аргументы командной строки (CLI Flags):
+
+      --title (str, обязательный): Заголовок уведомления.
+
+      --text (str, обязательный): Текст сообщения.
+
+      --is-alert / --is-permanent (флаги): Свойства для системных плашек в приложении (критичное / неудаляемое).
+
+      --include-without-token (флаг): Разрешает создавать записи в истории уведомлений БД даже для тех пользователей, у которых нет зарегистрированных мобильных токенов.
+
+      --user-id (int, append): Ограничение рассылки конкретными ID (можно передавать многократно).
+
+      --batch-size (int, default=500): Размер пачки для обработки и ограничения нагрузки на СУБД и сеть.
+
+      --dry-run (флаг): Тестовый запуск: только калькуляция и вывод в консоль целевой аудитории без записи в БД и отправки пушей.
+
+      --channel (choices: apns, fcm, hms, append): Фильтр конкретных платформ доставки.
+
+      --no-create-notifications (флаг): Отключение записи истории сообщений в таблицу user_notifications (только сетевой push).
+
+    Алгоритмическая логика метода handle:
+
+      Валидация: Проверяет строгие ограничения на непустые строки и положительный batch_size.
+
+      Селекция аудитории: Метод _target_users формирует базовый QuerySet. Если не указан --include-without-token, жестко отсекает пользователей без активных SIP-адресов в связке с токенами (PushSettings).
+
+      Сбор статистики: Метод _provider_counts собирает дедуплицированные метрики по токенам в разрезе мобильных платформ (apns, fcm, hms) и выводит их администратору.
+
+      Инициализация инфраструктуры: Через _register_available_senders динамически (через __import__) подгружает доступные драйверы отправки из слоя Infrastructure.push, изолируя команду от падения при отсутствии необходимых SDK на сервере.
+
+    Пакетный цикл: Разбивает user_ids на чанки согласно --batch-size. Внутри каждого чанка:
+
+      Опционально выполняет массовую вставку записей через UserNotification.objects.bulk_create().
+
+      Опрашивает инстансы сендеров из реестра, проверяет их на соответствие выбранным --channel и вызывает метод sender.send(user_id=..., message=...). Ошибки сетевых шлюзов изолируются в try-except блоке, не прерывая общую итерацию рассылки по остальным пачкам пользователей.
+
+  c) sync_sip_extensions_from_keycloak
+  
+    Тип элемента: ETL-команда (Extract, Transform, Load) интеграции.
+
+    Зависимости: Модель Users, инфраструктурный репозиторий KeycloakRepository.
+
+    Вспомогательная логика:
+      Функция sip_extension_from_keycloak_attributes(attributes) парсит вложенную JSON-структуру атрибутов Keycloak. Она учитывает вариативность именования ключей ("sip login" или "sip_login") и особенности хранения кастомных полей в Keycloak в виде списков строк (забирает raw[0]), возвращая очищенную строку или None.
+
+    Аргументы командной строки (CLI Flags):
+
+      --dry-run (флаг): Имитация работы для аудита расхождений без модификации таблиц PostgreSQL.
+
+      --full-fetch (флаг): Включает режим детального дозапроса карточки каждого пользователя. Необходим, если базовый списочный эндпоинт Keycloak возвращает пользователей без заполненного блока attributes.
+
+    Алгоритмическая логика метода handle:
+
+      Вызывает kc.get_all_users() для получения пула учетных записей из Keycloak.
+
+      Итерируется по пользователям IdP. При включенном --full-fetch осуществляет точечный HTTP-запрос get_user_by_uuid(kc_id).
+
+      Извлекает целевой SIP-логин с помощью парсера sip_extension_from_keycloak_attributes.
+
+      Выполняет поиск локального пользователя в БД Django: Users.objects.filter(uuid=kc_id).first().
+
+      Сверяет старое и новое значение. Если --dry-run выключен, перезаписывает поле user.sip_extension и выполняет оптимизированное сохранение в базу данных.
+
+      Использование параметра update_fields критически важно: это предотвращает перезапись других полей профиля пользователя (например, имени или статуса), которые могли измениться параллельно во время выполнения скрипта.
+
+      Логирует финальный баланс операции: сколько строк заполнено, сколько очищено (установлен NULL), и сколько UUID из Keycloak не нашли сопоставления в локальной базе данных системы.
+
+### 5.1.2.5 Спецификация пакетов слоя api/middleware
+  RequestLoggingMiddleware
+  
+    Тип элемента: Промежуточное ПО Django (Middleware / Interceptor).
+
+    Связи и зависимости: Наследует django.utils.deprecation.MiddlewareMixin. Взаимодействует с логгером 'api.requests', а также динамически обращается к моделям Users и Facilities_Users во избежание циклических импортов при старте приложения.
+
+    Алгоритмические методы класса:
+
+      process_request(self, request) (Точка входа запроса):
+        Исполняется до передачи управления контроллерам (Views). Захватывает текущую метку времени высокой точности через time.time() и динамически инжектирует её в объект запроса как приватный атрибут request._start_time. Возвращает None, сигнализируя Django о необходимости продолжить цепочку обработки.
+
+      process_response(self, request, response) (Точка выхода ответа):
+        Выполняется на обратном пути, когда контроллер уже сформировал HTTP-ответ. Если в объекте запроса присутствует метка _start_time, метод выполняет агрегацию метаданных:
+
+          Определение сетевого адреса: Вызывает get_client_ip.
+
+          Идентификация субъекта: При наличии аутентифицированной сессии (request.user.is_authenticated) передает объект пользователя в метод get_user_info. При отсутствии пользователя проставляет маркер 'Anon', а для инфраструктурного объекта — 'No facility'.
+
+          Колоночное форматирование (Column Padding): Для сохранения идеальной структуры строк в логах применяется форматирование f-строк с фиксированной шириной (<N):
+
+          Строка метода и URL (request_line_padded): 50 символов (с автоматическим дописыванием пробела в конец путей без query-параметров).
+
+          HTTP Статус ответа (status_padded): 15 символов.
+
+          IP-адрес клиента (ip_padded): 25 символов.
+
+          Идентификатор пользователя (user_padded): 15 символов.
+
+      Запись в лог: Отправляет итоговую строку со штампом времени [%d/%b/%Y %H:%M:%S] в логгер уровня INFO. Всегда возвращает объект response вызывающему контексту.
+
+      get_client_ip(self, request) (Парсер сетевых заголовков):
+        Применяет безопасный алгоритм детекции IP. Сначала проверяет заголовок HTTP_X_FORWARDED_FOR, который проставляется балансировщиками нагрузки (Nginx/HAProxy/Traefik). При его наличии забирает самый первый (левый) адрес из списка, так как он гарантированно принадлежит конечному клиенту. Если заголовок отсутствует, считывает прямой сокет из REMOTE_ADDR. При сбое возвращает строку 'unknown'.
+
+      get_user_info(self, user) (Связывание контекстов БД):
+        Осуществляет трансляцию токена безопасности в сущности СКУД. Извлекает уникальный UUID пользователя из OIDC-клейма user.sub. Если он пустой, выполнение прерывается. Через ORM находит локального пользователя в таблице Users.objects.get(uuid=user_sub).
+        Далее через промежуточную таблицу Facilities_Users вытаскивает все связанные жилые или коммерческие объекты (управляемые дома/офисы), оптимизируя запрос через .select_related('facility').
+
+      Форматирование Facility: Строки имен объектов объединяются через запятую. Если пользователь привязан более чем к 3 объектам, строка безопасно усекается: ",".join(facility_names[:3]) + "..." для предотвращения раздувания размера лог-файла. Любые непредвиденные исключения перехватываются блоком except Exception, возвращая дефолтное безопасное значение (None, 'No facility').
+
+### 5.1.2.6.1 Спецификация элементов пакета api.models.acess
+  a) Users
+  
+    Тип элемента: ORM Модель Django.
+
+    Таблица в БД: Users
+
+    Описание полей:
+
+      uuid (UUIDField, null=True, editable=False): Уникальный идентификатор субъекта. Является первичным ключом сопоставления с базой данных Keycloak.
+
+      name (CharField, max_length=255): Полное имя/ФИО пользователя.
+
+      role (CharField, max_length=255, null=True): Ролевой статус пользователя в системе.
+
+      email / phone (CharField, max_length=255, null=True): Контактные данные.
+
+      sip_extension (CharField, max_length=64, null=True): Номер внутренней SIP-линии/аккаунта для работы подсистемы видеодомофонии. Напрямую синхронизируется CLI-командами.
+
+      utm5_id (IntegerField, null=True): Внешний идентификатор пользователя в биллинговой системе UTM5.
+
+    Служебные методы: Метод __str__ возвращает текстовое представление name.
+
+  b) Codes
+  
+    Тип элемента: ORM Модель Django.
+
+    Таблица в БД: Codes
+
+    Описание полей:
+
+      code (CharField, max_length=8, null=True): Цифровая комбинация (например, PIN-код для открытия двери или калитки).
+
+      expired (DateTimeField, null=True): Временная метка окончания действия кода (для гостевых или временных доступов).
+
+      facility (ForeignKey): Ссылка на модель объекта недвижимости Facilities. Связь защищена ограничением models.DO_NOTHING (удаление объекта не должно каскадно вызывать деструктивные триггеры СКУД без явной команды).
+
+  c) Tags
+  
+    Тип элемента: ORM Модель Django.
+
+    Таблица в БД: Tags
+
+    Описание полей:
+
+      code (CharField, max_length=14, null=True): Аппаратный UID RFID-метки, Mifare-карты или брелока.
+
+      name (CharField, max_length=255, null=True): Человекочитаемое название ключа (например, «Ключ для мамы»).
+
+      entrance_groups (ForeignKey): Ссылка на модель EntranceGroups (ограничение DO_NOTHING), определяющая конкретную группу входов/подъездов, куда разрешен проход.
+
+      user (ForeignKey): Ссылка на владельца ключа из таблицы Users.
+
+      facility (ForeignKey): Ссылка на целевой объект Facilities. При удалении объекта поле автоматически сбрасывается в NULL (models.SET_NULL).
+
+  d) UserNotification
+  
+    Тип элемента: ORM Модель Django.
+
+    Таблица в БД: user_notifications
+
+    Описание полей:
+
+      id (BigAutoField, primary_key=True): Автоинкрементный суррогатный ключ повышенной емкости (64-bit Int) для высоконагруженных таблиц логов.
+
+      user (ForeignKey): Ссылка на получателя Users. Установлена каскадная зависимость models.CASCADE (при удалении профиля пользователя вся история его уведомлений стирается автоматическим триггером).
+
+      is_permanent (BooleanField): Флаг постоянного (неудаляемого из интерфейса) сообщения.
+
+      is_closed (BooleanField): Флаг того, что пользователь скрыл/закрыл плашку уведомления.
+
+      is_alert (BooleanField): Маркер экстренного/критического оповещения.
+
+      title (CharField, max_length=255) / text (TextField): Заголовок и тело сообщения.
+
+      created_at (DateTimeField): Время генерации записи (например, в цикле CLI-команды рассылки).
+
+      delivered_at / read_at (DateTimeField, null=True): Метки времени обратной связи от мобильного приложения, фиксирующие доставку на устройство и открытие сообщения пользователем.
+
+  e) UsersPrivacyConsents
+  
+    Тип элемента: ORM Модель Django.
+
+    Таблица в БД: users_privacy_consents
+
+    Описание полей:
+
+      id (BigAutoField, primary_key=True): Первичный ключ (64-bit Int).
+
+      user (ForeignKey): Ссылка на Users с ограничением DO_NOTHING. Задан related_name='privacy_consents', что позволяет вызывать историю согласий из инстанса пользователя через user.privacy_consents.all().
+
+      consent_version (CharField, max_length=20): Версия юридического документа Политики конфиденциальности (например, "v1.2.2026").
+
+      ip_address (CharField, max_length=45, null=True): IP-адрес, с которого было зафиксировано нажатие кнопки «Согласен» (длина 45 символов учитывает IPv6 адреса).
+
+      user_agent (TextField, null=True): Системная строка браузера или ОС мобильного приложения для фиксации технического контекста.
+
+      accepted_at (DateTimeField): Точное время фиксации согласия.
+
+### 5.1.2.6.2 Спецификация элементов пакета api.models.app_settings
+  a) AppSettings
+  
+    Тип элемента: ORM Модель Django.
+
+    Таблица в БД: AppSettings
+
+    Описание полей:
+
+      name (CharField, max_length=255): Уникальный текстовый ключ параметра (например, "maintenance_mode", "min_supported_version", "api_banner_text").
+
+      data (CharField, max_length=255, null=True, blank=True): Строковое значение параметра. При необходимости хранения сложных структур данных (массивов или JSON) значения сериализуются в строку.
+
+    Служебные методы: Метод __str__ возвращает значение поля name.
+
+  b) PushSettings
+  
+    Тип элемента: ORM Модель Django.
+
+    Таблица в БД: push_settings
+
+    Описание полей:
+
+      sip_address (CharField, max_length=255): Идентификатор SIP-линии абонента (например, "104@sip.company.ru"). Соответствует полю sip_extension из профиля пользователя Users, выступая в роли логического моста.
+
+      pn_prid (CharField, max_length=500): Push Registration ID — уникальный аппаратный токен девайса, выданный операционной системой (APNs девайс-токен, FCM-токен или HMS-токен).
+
+      pn_provider (CharField, max_length=50): Идентификатор шлюза доставки ("apns", "fcm", "hms"). Именно по этому полю CLI-команды рассылок и инфраструктурные сендеры фильтруют целевую аудиторию.
+
+      pn_param (CharField, max_length=500): Дополнительные параметры push-регистрации (например, bundle ID приложения или служебные метаданные SDK).
+
+      pn_silent (IntegerField): Флаг/режим доставки бесшумных уведомлений (Silent Pushes / Voip Background Pushes), используемых для скрытого пробуждения SIP-клиента на смартфоне при входящем звонке.
+
+      pn_device (CharField, max_length=255, null=True, blank=True): Уникальный идентификатор самого физического устройства (UUID девайса или его имя), позволяющий отличать сессии.
+
+      updated_at (DateTimeField, null=True, blank=True): Время последнего обновления или подтверждения активности токена мобильным приложением (используется для ротации и удаления устаревших токенов).
+
+    Ограничения целостности (Meta Constraints):
+
+      unique_together = (('sip_address', 'pn_device'),) — составной уникальный ключ. Гарантирует, что для одного конкретного физического устройства (pn_device) в рамках одного SIP-аккаунта (sip_address) может существовать строго одна актуальная запись с пуш-токеном. При повторной авторизации девайса запись обновляется (updated_at), а не дублируется.
+
+    Служебные методы: Метод __str__ возвращает строку формата "{sip_address} - {pn_provider}".
+
+### 5.1.2.6.3 Спецификация элементов пакета api.models.buildings
+  a) Buildings
+  
+    Тип элемента: ORM Модель Django.
+
+    Таблица в БД: Buildings
+
+    Описание полей:
+
+      name (TextField): Полный адрес или наименование здания (использование TextField обусловлено потенциально длинными строками адресов с указанием улиц, корпусов и строений).
+
+      fias_id (CharField, max_length=255, null=True, blank=True): Уникальный код дома в Федеральной информационной адресной системе (ФИАС). Критически важен для интеграции с ГИС ЖКХ, внешними картами и государственными сервисами.
+
+      external_id (IntegerField, null=True, blank=True): Идентификатор объекта во внешней управляющей или биллинговой системе (например, ID дома в 1С:ЖКХ или ERP).
+
+    Служебные методы: Метод __str__ возвращает текстовое значение поля name.
+
+  b) BuildingGroups
+  
+    Тип элемента: ORM Модель Django.
+
+    Таблица в БД: BuildingGroups
+
+    Описание полей:
+
+      name (CharField, max_length=256): Название объединения (например, «ЖК Рассвет», «Микрорайон 3», «Сектор А»).
+
+    Служебные методы: Метод __str__ возвращает значение поля name.
+
+  c) BuildingGroups_Buildings
+  
+    Тип элемента: Промежуточная ORM Модель Django (M2M Through table).
+
+    Таблица в БД: BuildingGroups_Buildings
+
+    Описание полей:
+
+      building_gorup (ForeignKey, null=True): Ссылка на модель BuildingGroups с ограничением models.DO_NOTHING. (Примечание: в имени поля присутствует историческая опечатка building_gorup, зафиксированная в схеме БД).
+
+      building (ForeignKey, null=True): Ссылка на модель Buildings с ограничением models.DO_NOTHING.
+
+  d) Zones
+  
+    Тип элемента: ORM Модель Django.
+
+    Таблица в БД: Zones
+
+    Описание полей:
+
+      name (IntegerField): Целочисленный идентификатор или номер зоны (например, номер парковочной зоны, сектор СКУД, код тарифной зоны автоматизации).
+
+### 5.1.2.6.4 Спецификация элементов пакета api.models.calls
+  MissedCall
+  
+    Тип элемента: Неуправляемая ORM Модель Django (managed = False).
+
+    Таблица в БД: MissedCalls (Удаленная таблица в базе данных asterisk).
+
+    Описание полей:
+
+      id (BigAutoField, primary_key=True): Первичный ключ повышенной емкости (64-bit Int) для ведения высоконагруженного лога сессий связи.
+
+      user_address (TextField): Текстовый адрес или SIP-аккаунт принимающей стороны (мобильного клиента или внутренней трубки пользователя).
+
+      facility_address (TextField): Идентификатор/номер помещения или SIP-extension квартиры, куда был направлен вызов.
+
+      intercom_address (TextField): Уникальный сетевой адрес или extension-код самой физической вызывной панели домофона, с которой совершен звонок.
+
+      start_time (DateTimeField): Метка времени инициализации вызова (момент нажатия кнопки на домофоне).
+
+      end_time (DateTimeField, null=True, blank=True): Метка времени разрыва соединения или отбоя. Может быть NULL, если звонок находится в процессе обработки или оборвался на этапе сигнализации.
+
+      call_status (CharField, max_length=255): Статус завершения вызова (например, "MISSED", "ANSWERED", "BUSY", "NO ANSWER").
+
+    Параметры конфигурации метаданных (Meta Class):
+
+      managed = False — Критически важный флаг архитектуры. Указывает Django, что управление жизненным циклом таблицы (создание, модификация схемы, удаление) полностью делегировано внешней системе (АТС Asterisk). Вызовы команд makemigrations и migrate будут игнорировать этот класс, предотвращая деструктивные изменения в БД телефонии.
+
+      db_table = "MissedCalls" — Явное сопоставление с регистрозависимым именем таблицы в целевой базе данных.
+
+### 5.1.2.6.5 Спецификация элементов пакета api.models.cameras
+  a) CamerasData
+  
+    Тип элемента: ORM Модель Django.
+
+    Таблица в БД: CamerasData
+
+    Описание полей:
+
+      name (CharField, max_length=255, null=True): Наименование камеры (например, «Шлагбаум Запад», «Лифт 2 к.1»).
+
+      device (ForeignKey, null=True, related_name='cameras'): Ссылка на родительское физическое устройство из таблицы Devices (ограничение DO_NOTHING).
+
+      source_stream_url (CharField, max_length=100): Исходный RTSP/HTTP URL-адрес медиапотока для захвата сервером MediaMTX.
+
+      archive_url (CharField, max_length=255, null=True): Сетевой путь к хранилищу видеоархива.
+
+      restream_url (CharField, max_length=255, null=True): Сформированный URL-адрес потока (HLS/WebRTC) для безопасной и оптимизированной отдачи в клиентские приложения.
+
+      sip / sip_password (CharField, null=True): Учетные данные встроенного SIP-клиента для интеграции камеры с вызывной панелью домофона.
+
+      archive_duration (CharField, max_length=64, null=True): Длительность хранения архива по умолчанию (например, "7 days").
+
+  b) CamerasGroups
+  
+    Тип элемента: ORM Модель Django.
+
+    Таблица в БД: CamerasGroups
+
+    Описание полей:
+
+      name (CharField, max_length=255): Название группы (например, «Камеры Периметра», «Паркинг»).
+
+      building (ForeignKey, null=True): Опциональная привязка к конкретному строению из таблицы Buildings.
+
+      building_group (ForeignKey, null=True): Опциональная привязка к жилому комплексу из таблицы BuildingGroups.
+
+    Служебные методы: Метод __str__ возвращает name.
+
+  c) Cameras_Users
+  
+    Тип элемента: ORM Модель Django (M2M Through).
+
+    Таблица в БД: Cameras_Users
+
+    Описание полей:
+
+      camera (ForeignKey): Ссылка на CamerasData.
+
+      user (ForeignKey): Ссылка на Users.
+
+      archive_duration (CharField, max_length=64, null=True): Индивидуальная глубина видеоархива, доступная конкретному пользователю (перекрывает глобальное значение из CamerasData).
+
+    Ограничения (Meta): unique_together = (('camera', 'user'),) предотвращает дублирование прав.
+
+  d) CamerasGroups_Cameras
+  
+    Тип элемента: ORM Модель Django.
+
+    Таблица в БД: CamerasGroups_Cameras
+
+    Описание полей:
+
+      camera (ForeignKey, related_name='camera_groups'): Ссылка на камеру.
+
+      cameras_group (ForeignKey, related_name='cameras'): Ссылка на логическую группу. Позволяет одной камере присутствовать в нескольких выборках.
+
+  e) CamerasGroups_Users
+  
+    Тип элемента: ORM Модель Django.
+
+    Таблица в БД: CamerasGroups_Users
+
+    Описание полей:
+
+      cameras_group (ForeignKey): Целевая группа камер.
+
+      user (ForeignKey): Пользователь, получающий доступ ко всем камерам этой группы.
+
+    Ограничения (Meta): unique_together = (('cameras_group', 'user'),) гарантирует атомарность назначения группового права.
+
+### 5.1.2.6.6 Спецификация элементов пакета api.models.devices
+  a) DeviceModels
+  
+    Тип элемента: ORM Модель Django.
+
+    Таблица в БД: DeviceModels
+
+    Описание полей:
+
+      vendor (CharField, max_length=255): Наименование производителя (например, «Beward», «Hikvision», «Sputnik»).
+
+      model (CharField, max_length=255): Конкретный индекс или торговое наименование модели аппаратного контроллера.
+
+    Служебные методы: Метод __str__ возвращает строку model.
+
+  b) Devices
+  
+    Тип элемента: ORM Модель Django (Центральная сущность аппаратного слоя).
+
+    Таблица в БД: Devices
+
+    Описание полей:
+
+      name (CharField, max_length=255, null=True): Произвольное имя устройства для диспетчеризации.
+
+      type (CharField, max_length=10): Строковый тип устройства (например, "intercom", "gate", "controller").
+
+      description (TextField, null=True): Дополнительные технические комментарии администратора.
+
+      building / building_group (ForeignKey, null=True): Прямая привязка к пространственной структуре фонда (ограничение DO_NOTHING).
+
+      geo (TextField, null=True): Строковое поле под GPS-координаты или текстовое описание планиметрии размещения устройства.
+
+      model (ForeignKey): Ссылка на спецификацию из DeviceModels.
+
+      login / password (CharField, max_length=32): Текстовые учетные данные (API-ключи или root-реквизиты) для отправки прямых команд управления из бэкенда на физическое устройство.
+
+      url (CharField, max_length=255, null=True): Сетевой IP-адрес или доменное имя веб-интерфейса/API самого устройства.
+
+      is_synced (IntegerField): Статус синхронизации локальной конфигурации устройства с облачным или центральным ядром системы (бинарный флаг или ID состояния).
+
+      sip_secret (CharField, max_length=20, null=True): Пароль внутренней SIP-регистрации устройства на АТС Asterisk для обеспечения аудио/видео вызовов.
+
+    Служебные методы: Метод __str__ возвращает строку формата "{primary_key}-{name}".
+
+  c) IntercomsData
+  
+    Тип элемента: ORM Модель Django.
+
+    Таблица в БД: IntercomsData
+
+    Описание полей:
+
+      device (ForeignKey): Обязательная связь с родительской записью в Devices. Представляет собой расширение базовой логики устройства до роли домофона.
+
+      sip (CharField, max_length=255, null=True): SIP-номер/экстеншен вызывной панели домофона для коммутации вызовов.
+
+      entrance (ForeignKey, null=True): Ссылка на конкретный подъезд (Entrances), на двери которого установлена панель.
+
+      login / password (CharField, max_length=255, null=True): Дополнительные/выделенные реквизиты доступа к стриминговому или сигнальному контуру домофона, если они отличаются от базового контроллера Devices.
+
+  d) Readers
+  
+    Тип элемента: ORM Модель Django.
+
+    Таблица в БД: Readers
+
+    Описание полей:
+
+      device (ForeignKey, null=True): Связь с базовым контроллером Devices, который обрабатывает прерывания и сигналы от данного считывателя.
+
+      entrance (ForeignKey, null=True): Локализация считывателя на конкретном входе/подъезде (Entrances).
+
+      number (IntegerField, null=True): Аппаратный порядковый номер считывателя на контроллере (например, 1 — считыватель на вход, 2 — считыватель на выход / кнопка RTE).
+
+      description (CharField, max_length=255, null=True): Метка для оператора (например, «Считыватель со стороны парковки»).
+
+### 5.1.2.6.7 Спецификация элементов пакета api.models.entrances
+  a) Entrances
+  
+    Тип элемента: ORM Модель Django.
+
+    Таблица в БД: Entrances
+
+    Описание полей:
+
+      name (CharField, max_length=255): Краткое техническое или пользовательское имя входа (например, "Подъезд 1", "Калитка West").
+
+      description (CharField, max_length=255): Развернутое описание локации для диспетчеров.
+
+      geo (TextField, null=True): Географические координаты или текстовая метка расположения.
+
+      building / building_group (ForeignKey, null=True): Пространственная привязка к конкретному строению (Buildings) или жилому комплексу (BuildingGroups). Ограничение — DO_NOTHING.
+
+      device (ForeignKey, null=True, related_name='entrances'): Прямая связь со спецификацией базового IoT-контроллера (Devices). Одно устройство может управлять точкой прохода (например, контроллер СКУД или вызывная панель).
+
+      num (IntegerField, null=True): Порядковый номер (например, номер подъезда для сортировки в интерфейсах).
+
+    Ограничения целостности (Meta Constraints):
+
+      unique_together = (('building', 'name'), ('building_group', 'name'),) — составные уникальные ключи. Гарантируют, что в рамках одного здания или одного ЖК не может быть двух входов с абсолютно одинаковым именем.
+
+  b) EntranceGroups
+  
+    Тип элемента: ORM Модель Django.
+
+    Таблица в БД: EntranceGroups
+
+    Описание полей:
+
+      name (CharField, max_length=255): Название группы доступа (например, "Общий периметр", "Шлагбаумы въезда").
+
+      building / building_group (ForeignKey, null=True): Территориальная локализация самой группы в структуре недвижимости.
+
+  c) EntranceGroups_Entrances
+  
+    Тип элемента: ORM Модель Django (Through table).
+
+    Таблица в БД: EntranceGroups_Entrances
+
+    Описание полей:
+
+      entrance (ForeignKey, related_name='entrance_group_relations'): Ссылка на точку прохода.
+
+      entrance_group (ForeignKey, related_name='entrance_relations'): Ссылка на логическую группу.
+
+  d) Entrances_Users
+  
+    Тип элемента: ORM Модель Django.
+
+    Таблица в БД: Entrances_Users
+
+    Описание полей:
+
+      entrance (ForeignKey, related_name='user_relations'): Конкретный вход.
+
+      user (ForeignKey, related_name='entrance_relations'): Конкретный пользователь (Users).
+
+  e) EntranceGroups_Users
+  
+    Тип элемента: ORM Модель Django.
+
+    Таблица в БД: EntranceGroups_Users
+
+    Описание полей:
+
+      user (ForeignKey, null=True): Ссылка на пользователя.
+
+      entrance_group (ForeignKey, null=True): Ссылка на группу входов, к которой пользователю открывается массовый доступ.
+
+### 5.1.2.6.8 Спецификация элементов пакета api.models.facilities
+  a) Facilities
+  
+    Тип элемента: ORM Модель Django.
+
+    Таблица в БД: Facilities
+
+    Описание полей:
+
+      building (ForeignKey, null=True): Прямая связь со зданием Buildings (ограничение DO_NOTHING).
+
+      name (CharField, max_length=32): Номер или наименование помещения (например, "кв. 145", "Офис 3B").
+
+      num (IntegerField, null=True): Числовое представление номера (для сортировки).
+
+      entrance_num (IntegerField, null=True): Номер подъезда, к которому физически относится данная квартира.
+
+      floor / rooms_count (IntegerField, null=True): Этаж расположения и комнатность объекта.
+
+      fias_id (CharField, max_length=100, null=True): Уникальный код помещения в Федеральной информационной адресной системе (ФИАС) для точечной интеграции.
+
+      extension (CharField, max_length=64, null=True): Выделенный SIP-номер/экстеншен помещения на АТС Asterisk (используется для маршрутизации вызова на домофонную трубку или в приложение при наборе номера квартиры на панели).
+
+  b) Facilities_Users
+  
+    Тип элемента: ORM Модель Django (M2M Link).
+
+    Таблица в БД: Facilities_Users
+
+    Описание полей:
+
+      facility (ForeignKey, related_name='facility_users') / user (ForeignKey, related_name='user_facilities'): Связываемые сущности помещения и пользователя. Задано каскадное удаление on_delete=models.CASCADE — аннулирование аккаунта пользователя или удаление помещения автоматически стирает права доступа.
+
+      created_at (DateTimeField, auto_now_add=True): Дата и время привязки пользователя к объекту (дата «заселения»).
+
+      external_id (BigIntegerField, null=True): Идентификатор лицевого счета или договора во внешней биллинговой системе (например, 1С, UTM5), используемый при парсинге начислений.
+
+  c) Facilities_Devices
+  
+    Тип элемента: ORM Модель Django.
+
+    Таблица в БД: Facilities_Devices
+
+    Описание полей:
+
+      facility (ForeignKey) / device (ForeignKey, related_name='facilities_devices'): Связка помещения с обслуживающим его оборудованием (Devices).
+
+      link_type (CharField, max_length=7): Характер/тип связи (например, "primary", "backup", "intercom").
+
+      num / num_primary / num_aux: Служебные порты, физические адреса на шине контроллера или внутренние логические номера коммутатора, к которым подключена физическая трубка в квартире.
+
+  d) Facilities_Entrances и Facilities_EntranceGroups
+  
+    Тип элементов: ORM Модели Django (Ассоциативные шлюзы СКУД).
+
+    Таблицы в БД: Facilities_Entrances / Facilities_EntranceGroups
+
+    Описание логики: Модели устанавливают прямую связь между квартирой и дверями/воротами, которые по умолчанию открыты для жильцов этой квартиры (например, «родной» подъезд, общая калитка двора).
+
+    Ограничения (Meta): unique_together в обеих моделях исключает появление дублирующихся правил доступа.
+
+### 5.1.2.7.1 Спецификация элементов пакета api.repository.acess
+  a) Codes
+  
+    Бизнес-ориентированная модель: Codes
+
+    Базовый класс: BaseRepository
+
+    Реализованные методы:
+
+      get_by_facilities(self, facility_ids): Возвращает выборку активных кодов для переданного списка ID объектов недвижимости. Код считается активным, если дата его истечения не задана (expired__isnull=True) или больше/равна текущему системному времени (expired__gte=now). Использует .select_related('facility') для кэширования связей.
+
+      get_expired_by_facilities(self, facility_ids): Извлекает архивные коды с истекшим сроком действия (expired__lt=now), у которых поле окончания действия гарантированно заполнено.
+
+      create(self, data) / create_with_sync(self, data): create делегирует сохранение базовому репозиторию. Метод create_with_sync принудительно вызывает нативный self.model.objects.create, что гарантирует триггер стандартных сигналов Django (Django Signals) для мгновенной синхронизации кода с контроллерами СКУД на объектах.
+
+      check_facility_access(self, user_uuid, facility_id): Метод безопасности. Проверяет связь «пользователь-квартира» по цепочке: Facilities -> Facilities_Users -> Users.uuid. Возвращает True, если переданный UUID из токена Keycloak имеет отношение к запрашиваемому объекту.
+
+      delete_code(self, code_ids, facility_id): Точечное атомарное удаление кодов с обязательным ограничением по facility_id для исключения несанкционированного удаления чужих ключей через подмену ID.
+
+  b) Tags
+  
+    Бизнес-ориентированная модель: Tags
+
+    Базовый класс: BaseRepository
+
+    Реализованные методы:
+
+      get_by_facilities(self, facility_ids): Извлекает все метки, привязанные к объектам. Применяет оптимизацию .select_related('user', 'entrance_groups') и очистку дубликатов через .distinct().
+
+      get_facility_name(self, facility_id): Возвращает кортеж (facility.name, tag.name). Применяется для быстрого форматирования ответов в UI. В случае отсутствия объекта возвращает безопасную заглушку.
+
+      create_tag(self, code, name, user_id, facility_id, entrance_groups_id=None): Низкоуровневый фабричный метод сборки инстанса новой RFID-метки в системе.
+
+      user_has_access_to_facility(self, user_id, facility_id): Проверяет легитимность операций пользователя, опираясь на внутренний целочисленный user_id локальной БД.
+
+      get_user_facility_for_code(self, user_id, code): Запрашивает тег по связке «код + владелец». Конструкция .exclude(facility_id=None) гарантирует, что будут проигнорированы уже отвязанные от недвижимости ключи.
+
+      unbind_tag_from_facility(self, tag): Реализация паттерна мягкого сброса. Вместо физического вызова .delete() метод зануляет поля facility_id, user_id и name, переводя RFID-токен в пул свободных/неактивных ключей. Сохранение выполняется оптимизированным методом tag.save(update_fields=[...]), затрагивающим только измененные колонки.
+
+      update_tag_name_by_code(self, code, new_name, user_id): Метод кастомизации имени ключа. Переименование разрешено только в двух случаях: если пользователь является прямым владельцем тега (tag.user_id == user_id) ИЛИ если тег привязан к недвижимости, к которой у данного пользователя есть легальный доступ.
+
+  c) Users
+  
+    Бизнес-ориентированная модель: Users
+
+    Базовый класс: BaseRepository
+
+    Реализованные методы:
+
+      get_user_by_uuid(self, user_uuid): Главный метод аутентификационного шлюза. Выполняет поиск локального профиля пользователя по его уникальному строковому/UUID идентификатору sub, извлеченному из валидированного JWT-токена авторизационного сервера Keycloak.
+
 
 #### 5.2.1 Design Concerns
 *The purpose of the Context viewpoint is to identify a design subject's offered services, its actors (users and other interacting stakeholders), to establish the system boundary and to effectively delineate the design subject's scope of use and operation.*
