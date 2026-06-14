@@ -1560,227 +1560,581 @@ c) ProtectedDataView
 
       get_user_by_uuid(self, user_uuid): Главный метод аутентификационного шлюза. Выполняет поиск локального профиля пользователя по его уникальному строковому/UUID идентификатору sub, извлеченному из валидированного JWT-токена авторизационного сервера Keycloak.
 
+### 5.1.2.7.2 Спецификация элементов пакета api.repository.base
+  a) BaseRepository
+  
+    Тип элемента: Абстрактный базовый класс (интерфейсная модель).
 
-#### 5.2.1 Design Concerns
-*The purpose of the Context viewpoint is to identify a design subject's offered services, its actors (users and other interacting stakeholders), to establish the system boundary and to effectively delineate the design subject's scope of use and operation.*
+    Свойство класса: model = None — переопределяется в каждом дочернем репозитории (например, model = Tags, model = Codes), связывая логику репозитория с конкретной ORM-моделью.
 
-*Drawing a boundary separating a design subject from its environment, determining a set of services to be provided, and the information flows between design subject and its environment, is typically a key design decision. That makes this viewpoint applicable to most design efforts.*
+    Описание методов класса:
+    
+      get(cls, pk)
 
-*When the system is portrayed as a black box, with internal decisions hidden, the Context view is often a starting point of design, showing what is to be designed functionally as the only available information about the design subject: a name and an associated set of externally identifiable services. Requirements analysis identifies these services with the specification of quality of service attributes, henceforth invoking many non-functional requirements. Frequently incomplete, a Context view is begun in requirements analysis. Work to complete this view continues during design.*
+        Назначение: Безопасное извлечение одной записи по первичному ключу (pk).
 
-#### 5.2.2 Design Elements
-*Design entities: actors--external active elements interacting with the design subject, including users, other stakeholders and external systems, or other items; services--also called use cases; and directed information flows between the design subject, treated as a black box, and its actors associating actors with services. Flows capture the expected information content exchanged.*
+        Логика работы: Оборачивает стандартный метод objects.get() в блок try-except. В случае, если запись отсутствует в СУБД, перехватывает исключение ObjectDoesNotExist и возвращает None. Это избавляет сервисный слой от необходимости обрабатывать исключения ORM вручную.
 
-*Design relationships: receive output and provide input (between actors and the design subject).*
+      get_or_404(cls, pk)
 
-*Design constraints: qualities of service; form and medium of interaction (provided to and received from) with environment.*
+        Назначение: Извлечение записи с автоматической генерацией ответа "Не найдено" для REST API.
 
-#### 5.2.3 Example Languages
-*Any black-box type diagrams can be used to realise the Context viewpoint. Appropriate languages include Structured Analyys [e.g., IDEF0 (IEEE Std 1320.1-1998 [B18]), Structured Analysis and Design Technique (SADT)(Ross [B32]) or those of the Dearco of Gane-Sarson variety], the Cleanroom's black box diagrams, and UML use cases (OMG [B28]).*
+        Логика работы: Делегирует запрос нативной функции Django get_object_or_404. Если запись не найдена, выбрасывается исключение Http404, которое автоматически перехватывается фреймворком и возвращает клиенту HTTP-статус 404 Not Found. Применяется на пользовательских эндпоинтах.
 
-### 5.3 Composition Viewpoint
-*The Composition viewpoint describes the way the design subject is (recursively) structured into constituent parts and establishes the roles of those parts.*
+      all(cls)
 
-#### 5.3.1 Design Concerns
-*Software developers and maintainers use this viewpoint to identify the major design constituents of the design subject, to localise and allocate functionality, responsibilities, or other design roles to these constituents. In maintenance, it can be used to conduct impact analysis and localise the efforts of making changes. Reuse, on the level of existing subsystems and large-grained components, can be addressed as well. The information in a Composition view can be used by acquisition management and in project management for specification and assignment of work packages, and for planning, monitoring and control of a software project. This information, together with other project information, can be sued in estimating cost staffing, and schedule for the development effort. Configuration management may use the information to establish the organisation, tracking, and change management of emerging work products (see IEEE Std 12207-2008 [B21]).*
+        Назначение: Получение полного нефильтрованного ленивого запроса (QuerySet) для текущей модели.
 
-#### 5.3.2 Design Elements
-*Design entities: types of constituents of a system: subsystems, components, modules; ports and (provided and required) interfaces; also libraries, frameworks, software repositories, catalogs, and templates.*
+      create(cls, kwargs)
 
-*Design relationships: composition, use, and generalisation. The Composition viewpoint supports the recording of the part-whole relationships between design entities using realisation, dependency, aggregation, composition, and generalisation relationships. Additional design relationships are required and provided (interfaces), and the attachment of ports to components.*
+        Назначение: Атомарное создание новой записи в БД без выполнения сопутствующих триггеров.
 
-*Design attributes: For each design entity, the viewpoint provides a reference to a detailed description via the identification attribute. The attribute descriptions for identification, type, purpose, function, and definition attribute should be utilised.*
+      update(cls, instance, kwargs)
 
-##### 5.3.2.1 Function Attribute
-*A statement of what the entity does. The function attribute states the transformation applied by the entity to its inputs to produce the output. In the case of a data entity, this attribute states the type of information stored or transmitted by the entity.*
+        Назначение: Обновление полей существующего инстанса модели.
 
-##### 5.3.2.2 Subordinates Attribute
-*The identification of all entities composing this entity. The subordinates attribute identifies the "composed of" relationship for an entity. This information is used to trace requirements to design entities and to identify parent/child structural relationships through a design subject.*
+        Логика работы: Принимает живой объект instance и словарь изменяемых параметров kwargs. Динамически проставляет новые значения через встроенную функцию setattr(instance, field, value) и выполняет коммит через instance.save().
 
-#### 5.3.3 Example Languages
-*UML component diagrams (see OMG [B28]) cover this viewpoint. The simplest graphical technique used to describe functional system decomposition is a hierarchical decomposition diagram; such diagram can be used together with natural language descriptions of purpose and function for each entity, such as is provided by IDEF0 (IEEE Std 1320.1-1998 [B18]), the Structure Chart (Yourdon and Constantine [B38]), and the HIPO Diagram. Run-time composition can also use structured diagrams (Page-Jones [B29]).*
+      delete(cls, instance)
 
-### 5.4 Logical Viewpoint
-*The purpose of the Logical viewpoint is to elaborate existing and designed types and their implementations as classes and interfaces with their structural static relationships. This viewpoint also uses examples of instances of types in outlining design ideas.*
+        Назначение: Физическое удаление переданного объекта из базы данных с помощью вызова instance.delete().
 
-#### 5.4.1 Design Concerns
-*The Logical viewpoint is used to address the development and reuse of adequate abstractions and their implementations. For any implementation platform, a set of types is readily available for the domain abstractions of interest in a design subject, and a number of new types is to be designed, some of which may be considered for reuse. The main concern is the proper choice of abstractions and their expression in terms of existing types (some of which may had been specific to the design subject).*
+### 5.1.2.7.3 Спецификация элементов пакета api.repository.buildings
+  a) Buildings
+  
+    Бизнес-ориентированная модель: Buildings
 
-#### 5.4.2 Design Elements
-*Design entities: class, interface, power type, data type, object, attribute, method, association class, template, and namespace.*
+    Базовый класс: BaseRepository
 
-*Design relationships: association, generalisation, dependency, realisation, implementation, instance of, composition, and aggregation.*
+    Описание: Наследует полный спектр стандартных методов. Используется сервисным слоем для поиска зданий по первичным ключам (get, get_or_404), а также для административных задач — привязки внешних идентификаторов биллинга (external_id) или обновления адресных кодов ФИАС (fias_id).
 
-*Design attributes: name, role name, visibility, cardinality, type, stereotype, redefinition, tagged value, parameter, and navigation efficiency.*
+  b) BuildingGroups
+  
+    Бизнес-ориентированная модель: BuildingGroups
 
-*Design constraints: value constraints, relationships exclusivity constraints navigability, generalisation sets, multiplicity, derivation, changeability, initial value qualifier, ordering, static, pre-condition, post-condition, and generalisation set constraints.*
+    Базовый класс: BaseRepository
 
-#### 5.4.3 Example Languages
-*UML class diagrams and UML object diagrams (showing objects as instances of their respective classes)(OMG [B28]). Lattices of types and references to implemented types are commonly used as supplementary information.*
+    Описание: Предоставляет интерфейс для управления сущностями ЖК и микрорайонов. Используется для вывода списков доступных жилых комплексов в интерфейсах диспетчеров и мобильных приложений.
 
-### 5.5 Dependency Viewpoint
-*The Dependency viewpoint specifies the relationships of interconnection and access among entities. These relationships include shared information, order of execution, or parameterisation of interfaces.*
+  c) BuildingGroups_Buildings
+  
+    Бизнес-ориентированная модель: BuildingGroups_Buildings
 
-#### 5.5.1 Design Concerns
-*A Dependency view provides an overall picture of the design subject in order to assess the impact of requirements or design changes. It can help maintainers to isolate entities causing system failures or resource bottlenecks. It can aid in producing the system integration plan by identifying the entities that are needed by other entities and that must be developed first. This description can also be used by integration testing to aid in the production of integration test cases.*
+    Базовый класс: BaseRepository
 
-#### 5.5.2 Design Elements
-*Design entities: subsystem, component, and module.*
+    Описание: Явный репозиторий для управления связями «многие-ко-многим». Выделение промежуточной таблицы в отдельный репозиторий позволяет гибко связывать или изолировать конкретные дома от управляющих групп, используя метод create (без сигналов) или delete.
 
-*Design relationships: uses, provides and requires*
+  d) Zones
+  
+    Бизнес-ориентированная модель: Zones
 
-*Design attribute: name (4.6.2.1), type (4.6.2.2), purpose (4.6.2.3), dependencies (5.5.2.1), and resources. These attributes should be provided for all design entities.*
+    Базовый класс: BaseRepository
 
-##### 5.5.2.1 Dependencies Attribute
-*A description of the relationships of this entity with other entities. The dependencies attribute identifies the uses or requires the presence of relationship of an entity. This attribute is used to describe the nature of each interaction including such characteristics as timing and conditions for interaction. The interactions involve the initiation, order of execution, data sharing, creation, duplicating, usage, storage, or destruction of entities.*
+    Описание: Отвечает за операции над целочисленными идентификаторами зон автоматизации и СКУД.
 
-#### 5.5.3 Example Languages
-*UML component diagrams and UML package diagrams showing dependencies among subsystems (OMG [B28]).*
+### 5.1.2.7.4 Спецификация элементов пакета api.repository.calls
+  a) MissedCallsRepository
+  
+    Тип элемента: Автономный репозиторий (без наследования от BaseRepository).
 
-### 5.6 Information Viewpoint
-*The Information viewpoint is applicable when there is a substantial persistent data content expected with the design subject.*
+    Базовая технология: pymysql.cursors.DictCursor (возвращает строки в виде ассоциативных словарей Python, готовых для сериализации в API).
 
-#### 5.6.1 Design Concerns
-*Key concerns include persistent data structure, data content, data management strategies, data access schemes, and definition of metadata.*
+    Спецификация метода list_for_sip_login(self, sip_login, offset, limit): Метод выполняет чтение истории вызовов для конкретного SIP-аккаунта пользователя, полученного из JWT-токена Keycloak. Принимает параметры пагинации (limit, offset) и возвращает кортеж (rows, total), где rows — список словарей с данными вызовов, а total — общее количество записей, удовлетворяющих условию фильтрации (необходимо для построения метаданных пагинации на фронтенде).
 
-#### 5.6.2 Design Elements
-*Design entities: data items, data types and classes, data stores, and access mechanisms.*
+### 5.1.2.7.5 Спецификация элементов пакета api.repository.cameras
+  a) CamerasData
+  
+    Бизнес-ориентированная модель: CamerasData
 
-*Design relationships: association, uses implements. Data attributes, their constraints and static relationships among data entities, aggregates of attributes, and relationships.*
+    Базовый класс: BaseRepository
 
-*Design attributes: persistence and quality properties.*
+    Описание: Наследует стандартный CRUD-интерфейс. Используется преимущественно в административном контуре API для конфигурации RTSP/HLS-адресов рестриминга (source_stream_url, restream_url) и SIP-аккаунтов панелей.
 
-##### 5.6.2.1 Data Attribute
-*A description of data elements internal to the entity. The data attribute describes the method of representation, initial values, use, semantics, format, and acceptable values of internal data. The description of data may be in the form of a data dictionary that describes the content, structure, and use of all data elements. Data information should describe everything pertaining to the use of data or internal data structures by this entity. It should include data specifications such as formats, number of elements, and initial values. It should also include the structures to be used for representing data such as file structures arrays, stacks, queues, and memory partitions.*
+  b) UserCameras
+  
+    Бизнес-ориентированная модель: Devices
 
-*The meaning and use of data elements should be specified. This description includes such things as static versus dynamic, whether it is to be shared by transactions, used as a control parameter, or used as a value, loop iteration count, pointer, or link field. In addition, data information should include a description of data validation needed for the process.*
+    Базовый класс: BaseRepository
 
-#### 5.6.3 Example Languages
-*IDEFIX (IEEE Std 1320.2-1998 [B19]), UML class diagrams (OMG [B28]).*
+    Спецификация метода get_user_cameras_devices(self, user_sub): Метод принимает строковый UUID пользователя из Keycloak (user_sub) и возвращает оптимизированный QuerySet устройств (Devices), укомплектованных только теми камерами, к которым у пользователя есть легальный доступ.
 
-### 5.7 Patterns use Viewpoint
-*The viewpoint addresses design ideas (emergent concepts) as collaboration patterns involving abstracted roles and connectors.*
+### 5.1.2.7.6 Спецификация элементов пакета api.repository.devices
+  a) DeviceModels, IntercomsData, Readers
+  
+    Базовый класс: BaseRepository
 
-#### 5.7.1 Design Concerns
-*Key concerns include reuse at the level of design ideas (design patterns), architectural styles, and framework templates.*
+    Описание: Данные репозитории являются чистыми наследниками BaseRepository для соответствующих ORM-моделей (DeviceModels, IntercomsData, Readers). Они не переопределяют кастомную бизнес-логику выборки и предоставляют сервисному слою стандартизированные методы get, all, create (через bulk_create без вызова сигналов), update и delete для административных задач.
 
-#### 5.7.2 Design Elements
-*Design entities: collaboration, class, connector, role, framework template, and pattern.*
+  b) Devices
+  
+    Бизнес-ориентированная модель: Devices
 
-*Design relationships: association, collaboration use, and connector.*
+    Базовый класс: BaseRepository
 
-*Design attributes: name.*
+    Реализованные методы:
 
-*Design constraints: collaboration constraints.*
+      get_user_devices(self, sub)
 
-#### 5.7.3 Example Languages
-*UML composite structure diagram and a combination of the UML class diagram and the UML package diagram (OMG [B28]).*
+        Назначение: Возвращает список физических домофонных панелей, к которым авторизованный пользователь имеет доступ.
 
-### 5.8 Interface Viewpoint
-*The interface viewpoint proides information designers, programmers, and testers the means to know how to correctly use the services provided by a design subject. This description includes the details of external and internal interfaces not provided in the SRS. This viewpoint consists of a set of interface specifications for each entity.*
+      get_all_devices(self)
 
-#### 5.8.1 Design Concerns
-*An Interface view description serves as a binding contract among designers, programmers, customers, and testers. It provides them with an agreement needed before proceeding with the detailed design of entities. The interface description is used by technical writers to produce customer documentation or may be used directly by customers. In the latter case, the interface description could result in the production of a human interface view.*
+        Назначение: Системный метод для сквозного получения всех устройств в системе.
 
-*Designers, programmers, and testers often use design entities that they did not develop. These entities can be reused from earlier projects, contracted from an external source, or produced by other developers. The interface description establishes an agreement among designers, programmers, and testers about how cooperating entities will interact. Each entity interface description should contain everything another designer or programmer needs to know to develop software that interacts with that entity. A clear description of entity interfaces is essential on a multi-person development for smooth integration and ease of maintenance.*
+      get_devices_by_entrance_ids(self, entrance_ids)
 
-#### 5.8.2 Design Elements
-*The attributes for identification (4.6.2.1), function (5.3.2.1), and interface (6.8.2.1) should be provided for all design entities.*
+        Назначение: Возвращает список устройств, закрепленных за конкретными подъездами/входами.
 
-##### 5.8.2.1 Interface Attribute
-*A description of how other entities interact with this entity. The interface attribute describes the methods of interaction and the rules governing those interactions. Methods of interaction include the mechanisms for invoking or interrupting the entity, for communicating through parameters, common data areas or messages, and for direct access to internal data. The rules governing the interaction include the communications protocol, data format, acceptable values, and the meaning of each value.*
+### 5.1.2.7.7 Спецификация элементов пакета api.repository.entrances
+  a) Инфраструктурные CRUD-репозитории
+  
+    Классы EntranceGroups, EntranceGroups_Entrances, EntranceGroups_Users и Entrances_Users являются прямыми наследниками BaseRepository для соответствующих моделей. Они предоставляют стандартизированные методы управления записями без переопределения кастомных выборок.
 
-*This attribute provides a description of the input ranges, the meaning of inputs and outputs, the type and format of each input or output, and output error codes. For information systems, it should include inputs, screen formats, and a complete description of the interactive language.*
+  b) Entrances
+  
+    Бизнес-ориентированная модель: Entrances
 
-#### 5.8.3 Example Languages
-*Interface definition languages (IDL), UML component diagram (OMG [B28]). In case of user interfaces the Interface view should include screen formats valid inputs, and resulting outputs. For data-driven entities, a data dictionary should be used to describe the data characteristics. Those entities that are highly visible to a user and involve the details of how the customer should perceive the system should include a functional model, scenarios for use, detailed feature sets and the interaction language.*
+    Базовый класс: BaseRepository
 
-### 5.9 Structure Viewpoint
-*The Structure viewpoint is used to document the internal constituents and organisation of the design subject in terms of like elements (recursively).*
+    Реализованные методы:
 
-#### 5.9.1 Design Concerns
-*Compositional structure of coarse-grained components and reuse of fine-grained components*
+      get_user_entrances(self, sub)
 
-#### 5.9.2 Design Elements
-*Design entities: port, connector, interface, part, and class.*
+        Назначение: Возвращает QuerySet всех физических входов (Entrances), которые данный пользователь (идентификатор Keycloak sub) имеет право разблокировать.
 
-*Design relationships: connected, part of, enclosed, provided, and required.*
+      user_has_access(self, group_id, user_sub)
 
-*Design attributes: name, type, purpose, and definition.*
+        Назначение: Быстрый булев шлюз (Exists-запрос) для проверки вхождения пользователя в конкретную группу доступа.
 
-*Design constraints: interface constraints, reusability constraints, and dependency constraints.*
+      get_all_entrances(self)
 
-#### 5.9.3 Example Languages
-*UML composite structure diagram, UML class diagram, and UML package diagram (OMG [B28]).*
+        Назначение: Выгрузка всей топологии входов системы с глубоким упреждающим кэшированием.
 
-### 5.10 Interaction Viewpoint
-*The Interaction viewpoint defines strategies for interaction among entities, regarding why, where, how, and at what level actions occur.*
+### 5.1.2.7.8 Спецификация элементов пакета api.repository.facilities
+  a) Facilities_Devices и Facilities_Users
 
-#### 5.10.1 Design Concerns
-*For designers. This includes evaluating allocation of responsibilities in collaborations, especially when adapting and applying design patterns; discovery or description of interactions in terms of messages among affected objects in fulfilling required actions; and state transition logic and concurrency for reactive, interactive, distributed, real-time, and similar systems.*
+    Базовый класс: BaseRepository
 
-#### 5.10.2 Design Elements
-*Classes, methods, states, events, signals, hierarchy, concurrency, timing, and synchronisation.*
+    Описание: Чистые наследники базового репозитория, управляющие соответствующими промежуточными таблицами M2M. Предоставляют стандартные методы мутации данных (создание связей без вызова триггеров через bulk_create и их удаление).
 
-#### 5.10.3 Examples
-*UML composite structure diagram, UML interaction diagram (OMG [B28]).*
+  b) Facilities
+  
+    Бизнес-ориентированная модель: Facilities
 
-### 5.11 State Dynamics Viewpoints
-*Reactive systems and systems whose internal behaviour is of interest use this viewpoint.*
+    Базовый класс: BaseRepository
 
-#### 5.11.1 Design Concerns
-*System dynamics including modes, states, transitions, and reactions to events.*
+    Реализованные методы:
 
-#### 5.11.2 Design Elements
-*Design entities: event, condition, state, transition, activity, composite state, critical region, and trigger.*
+      get_user(self, identifier, identifier_type)
 
-*Design relationships: part-of, internal, effect, entry, exit, and attached to.*
+        Логика: Универсальный метод-селектор для поиска инстанса Users. Принимает строковый тип (id, uuid, username) и выполняет точечный objects.get(). В случае отсутствия записи перехватывает исключение и возвращает None.
 
-*Design attributes: name, completion, active, initial, and final.*
+      get_user_facilities(self, user_uuid)
 
-*Design constraints: guard conditions, concurrency, synchronisation, state invariant, transition constraint, and protocol.*
+        Логика: Возвращает список квартир, к которым привязан пользователь по его Keycloak-UUID. Оптимизирован через select_related('building') для одновременной выгрузки адреса дома и защищен .distinct().
 
-#### 5.11.3 Example Languages
-*UML state machine diagram (OMG [B28]), Harel statechart, state transition table (matrix), automata, Petri net.*
+      get_access_codes(self, facility_id)
 
-### 5.12 Algorithm Viewpoint
-*The detailed design description of operations (such as methods and functions), the internal details and logic of each design entity.*
+        Логика: Выбирает ПИН-коды, привязанные к помещению. Использует метод .values('code', 'expired'), заставляя Django делать легковесный SQL-запрос без сборки тяжелых ORM-объектов. Форматирует дату к стандарту ДД/ММ/ГГГГ ЧЧ:ММ.
 
-#### 5.12.1 Design Concerns
-*The Algorithm viewpoint provides details needed by programmers, analysts of algorithms in regard to time-space performance and processing logic prior to implementation, and to aid in producing unit test plans.*
+      get_associated_tags(self, facility_id)
 
-#### 5.12.2 Design Elements
-*These should include the attribute descriptions for identification, processing (5.12.1), and data for all design entities.*
+        Логика: Возвращает плоский список list() строк/номеров RFID-меток, закрепленных за помещением, через оптимизированный values_list(flat=True).
 
-#### 5.12.3 Processing Attribute
-*A description of the rules used by the entity to achieve its function. The processing attribute describes the algorithm used by the entity to perform a specific task and its contingencies. This description is a refinement of the function attribute and is the most detailed level of refinement for the entity.*
+      get_facility_device_relation(self) / get_device_facility_relations(self)
 
-*This description should include timing, sequencing of events or processes, prerequisites for process initiation, priority of events, processing level, actual process steps, path conditions, and loop back or loop termination criteria. The handling of contingencies should describe the action to be taken in the case of overflow conditions or in the case of a validation check failure.*
+        Логика: Зеркальные методы, которые вытягивают связи СКУД-коммутации из Facilities_Devices. Загружают связанные сущности через select_related('device', 'facility') и преобразуют их в чистые структуры словарей, содержащие аппаратные порты (num, num_primary, num_aux) и физический тип линии (link_type).
 
-#### 5.12.4 Examples
-*Descision tables and flowcharts; program design languages, "pseudo-code", and (actual) programming languages may also be used.*
+      get_associated_entrance(self, facility_id, device_id=None)
 
-### 5.13 Resource Viewpoint
-*The purpose of the Resource viewpoint is to model the characteristics and utilisation of resources in a design subject.*
+        Логика: Возвращает массив номеров (num) физических подъездов/точек прохода, которые обслуживают данное помещение. Запрос проходит сквозь таблицы: Entrances -> Devices -> Facilities_Devices. Опционально фильтрует данные по конкретному ID контроллера.
 
-#### 5.13.1 Design Concerns
-*Key concerns include resource utilisation, resource contention, availability, and performance.*
+### 5.1.2.7.9 Спецификация элементов пакета api.repository.integrations
+  a) FreePBXRepository
+  
+    Класс инкапсулирует в себе управление сессией и выполнение команд на сервере телефонии. Не использует Django ORM, работая как клиент внешнего API.
 
-#### 5.13.2 Design Elements
-*Design entities: resources, usage policies.*
+    OAuth2 Client Credentials: Метод _ensure_token автоматически запрашивает и кэширует в памяти Bearer-токен. Реализован механизм автоматического повтора запроса (Retry): при перехвате HTTP 401/403 токен принудительно сбрасывается и обновляется на лету.
 
-*Design relationship: allocation and uses.*
+    GraphQL Client: Универсальный метод _query выполняет мутации создания/обновления абонентов, принудительно отключая Голосовую почту (vmEnable: False) для предотвращения падений внутренних PHP-скриптов FreePBX.
 
-*Design attributes: identification (4.6.2.1), resource (5.13.2.1), performance measures (such as throughput, rate of consumption).*
+    SSH-координатор (Paramiko Client): Метод reload_freepbx устанавливает прямое SSH-соединение с сервером телефонии и выполняет системный вызов fwconsole reload для компиляции диалплана.
 
-*Design constraints: priorities, locks, resource constraints.*
+  b) AstriskGroupRepository
+  
+    Класс управляет распределением входящего вызова с домофона на устройства всех жильцов квартиры (вызывные группы).
 
-##### 5.13.2.1 Resources Attribute
-*A description of the elements used by the entity that are external to the design. The resources attribute identifies and describes all of the resources external to the design that are needed by this entity to perform its function. The interaction rules and methods for using the resource are to be specified by this attribute.*
+    Реализованные методы:
 
-*This attribute provides information about items such as physical devices (printers, disc-partitions, memory banks), software services (math libraries, operating system services), and processing resources (CPU cycles, memory allocation, buffers).*
+      create_ring_group / update_ring_group: Работают через мутации FreePBX GraphQL API. Задают стратегию звонка ringall (одновременный вызов всех привязанных SIP-аккаунтов членов семьи) с ограничением по времени ожидания в 30 секунд.
 
-*The resources attribute should describe usage characteristics such as the processing time at which resources are to be acquired and sizing to include quantity, and physical sizes of buffer usage. It should also include the identification of potential race and deadlock conditions as well as resource management facilities.*
+      create_ring_group_mysql / update_ring_group_mysql: Резервные/прямые методы манипуляции таблицей ringgroups через низкоуровневый курсор pymysql. Используются для обхода ограничений GraphQL API или при массовых фоновых операциях синхронизации.
 
-#### 5.13.3 Examples
-*Woodside [B37], UML class diagram, UML Object Constraint Langauge (OMG [B28]).*
+  c) AsteriskExtensionsRepository
+  
+    Отвечает за ведение промежуточной служебной таблицы AsteriskExtensions_Facilities_Users на выделенном сервере телефонии. Эта таблица связывает логический номер квартиры (входной поток) с персональными номерами мобильных приложений пользователей.
+
+  d) PjsipRealtimeRepository
+  
+    Используется для динамического управления абонентами на уровне СУБД Asterisk. Данный репозиторий спроектирован по паттерну Inversion of Control (IoC) в отношении управления транзакциями.
+
+    Внедрение контекста выполнения (Cursor Injection): Методы создания (insert_ps_aor, insert_ps_auth, insert_ps_endpoint) и обновления не управляют соединением самостоятельно. Они принимают активный объект cursor извне в качестве первого аргумента. Это позволяет вызывающему Сервису (Service Layer) объединять цепочки вставок в три разные таблицы в единую ACID-транзакцию.
+
+    Архитектура PJSIP Realtime: Распределяет данные по трем системным таблицам: ps_auths (аутентификация), ps_aors (адресация и лимит одновременных контактов max_contacts) и ps_endpoints (связующий профиль связи со специфичным контекстом обработки вызова context).
+
+  e) BillingRepository
+  
+    Предоставляет REST-интерфейс для синхронизации финансовых состояний абонентов и доступных им пакетов услуг Smart-Home.
+
+    Stateful Sessions: Использует requests.Session() для сохранения cookie-файлов и ID сессии (session_id), исключая необходимость выполнять процедуру авторизации (/api/login) при каждом индивидуальном запросе.
+
+  f) KeycloakRepository
+  
+    Класс инкапсулирует вызовы к API Keycloak для обеспечения сквозной аутентификации (SSO) жильцов. Работает по протоколу HTTP REST.
+
+    Lazy Token Initialization: Свойство @property def token реализует паттерн отложенной инициализации. Административный токен запрашивается через OpenID Connect только при первом фактическом выполнении бизнес-операции.
+
+    Реализация постраничной выборки (Pagination Cursor): Метод get_all_users абстрагирует ограничения Keycloak на максимальный размер ответа, реализуя цикл со смещением (first += max_results).
+
+    Механизм глубокого слияния словарей (Deep Merge): При обновлении пользователя (update_user) репозиторий выполняет слияние пользовательских атрибутов через распаковку словарей {user.get('attributes', {}), update_data['attributes']}, предотвращая затирание существующих системных флагов безопасности.
+
+  g) MediaMtxSynchonize
+  
+    Является специализированным Read-Only шлюзом над Django ORM моделью CamerasData.
+
+    Оптимизированные выборки: Метод get_all выполняет проекцию данных (.values()), извлекая из локальной базы только необходимые для стриминга поля (URL источника, глубина архива, SIP-реквизиты камеры) в виде чистого списка словарей, снижая накладные расходы на создание тяжелых инстансов Django Models.
+
+    Метод get_archive_urls_by_device_ids транслирует массив ID устройств в хэш-мапу (dict) для обеспечения O(1) доступа к адресам видеоархивов на уровне вызывающих контроллеров.
+
+### 5.1.2.7.10 Спецификация элементов пакета api.repository.notifications
+  PushTokensRepository
+  
+    Класс построен с использованием статических методов (@staticmethod), выполняя роль утилитного stateless-компонента над Django ORM моделями Users и PushSettings.
+
+    Реализованные архитектурные методы:
+
+      Пакетная трансляция сущностей (_sip_extensions_for_users): Внутренний метод принимает массив первичных ключей пользователей (user_ids) и преобразует их в плоский изолированный набор уникальных строк (set[str]) активных SIP-номеров. Использование .only("id", "sip_extension") гарантирует, что Django не будет вытягивать из базы тяжелые поля профилей пользователей (пароли, персональные данные, даты).
+
+      Регистронезависимая нормализация данных: При обработке полей pn_provider и pn_prid репозиторий автоматически выполняет очистку от пробельных символов (.strip()) и приведение к нижнему регистру (.lower()). Это предотвращает дублирование провайдеров в результирующем словаре из-за разницы в синтаксисе мобильных SDK (например, FCM и fcm).
+
+      Дедупликация токенов на уровне БД и Python: Использование структуры данных set внутри промежуточного словаря defaultdict(set) гарантирует, что если у одного SIP-аккаунта по какой-то причине задублировались записи с одинаковым токеном, вызывающий сервис получит очищенный от дублей массив данных.
+
+      Двухэтапная фильтрация связей: Вместо выполнения тяжелого SQL JOIN между таблицами пользователей и настроек пушей, репозиторий использует стратегию двух последовательных плоских запросов (сначала id__in=user_ids, затем sip_address__in=extensions). Это разгружает планировщик запросов СУБД и эффективно утилизирует индексы по колонкам id и sip_address.
+
+### 5.1.2.8.1 Спецификация элементов пакета api.service.acess
+  a) CodesService
+  
+    Обеспечивает жизненный цикл шестизначных цифровых кодов для открытия дверей через вызывные панели домофонии. Наследует базовые контракты от BaseService.
+
+    Архитектурные механизмы и методы:
+
+      generate_random_code: Внутренний алгоритмический метод. Генерирует псевдослучайную строку из 6 цифр в диапазоне 0-9.
+
+      create_code: Оркестрирует сквозной процесс создания кода. Сначала валидирует входящие структуры данных через CodesSerializer, затем выполняет сквозную проверку прав (check_facility_access). В случае успеха вызывает метод репозитория create_with_sync, который сохраняет код в локальную БД и одновременно инициирует трансляцию на аппаратные контроллеры.
+
+      delete_code: Выполняет каскадную валидацию безопасности. Предотвращает несанкционированное удаление чужих кодов. Если в рамках квартиры переданный code_ids не найден или не принадлежит ей, сервис выбрасывает бизнес-исключение, блокируя операцию до обращения к СУБД.
+
+  b) TagsService
+  
+    Является наиболее нагруженным компонентом бизнес-логики. Отвечает за сопоставление физических идентификаторов ключей и доменной модели пользователей.
+
+    Реализованные архитектурные механизмы:
+
+      Стейт-машина привязки ключа (add_tag_for_user): Реализует сложную логику валидации состояний тега. Разрешает привязку только в двух случаях: если тег абсолютно свободен (facility_id is None) или если выполняется условие can_update_existing_facility_tag (тег предварительно нарезан застройщиком на квартиру, но еще не закреплен за конкретным жильцом user_id is None). Во всех остальных случаях выбрасывает ValueError.
+
+      Асинхронная потоковая синхронизация (unbind_tag_for_user): При отвязке ключа сервис не просто очищает поля в БД, но и вызывает внешнюю утилиту run_sync_in_thread. Это изолирует основной поток выполнения запроса, отправляя команду синхронизации оборудования АТС/домофонии в фоновый фолк-поток.
+
+      Пакетный ETL-пайплайн из Excel (upload_keys_from_excel): Инкапсулирует обработку файлов с помощью библиотеки pandas.
+
+      Парсинг и адаптация типов: Автоматически сопоставляет возможные имена колонок реестра (Ключи, Tags, Keys). Нивелирует особенности чтения чисел с плавающей точкой в pandas (трансформирует 12345.0 обратно в строковое представление 12345).
+
+      Двухуровневая дедупликация: Фильтрует дубликаты как внутри самого загружаемого файла (с помощью seen_keys: set), так и по отношению к уже существующим записям в базе данных (existing_codes: set).
+
+      Атомарная пакетная вставка (Bulk Ingestion):* Обертывает создание массива объектов Tags в контекстный менеджер with transaction.atomic() и вызывает bulk_create с флагом ignore_conflicts=True, гарантируя высокую скорость загрузки при минимальном количестве SQL-запросов к СУБД.
+
+  c) UsersPrivacyConsentsService 
+  
+    Выделенный микросервис внутри пакета, отвечающий за соблюдение комплаенса и защиту персональных данных (GDPR / ФЗ-152).
+
+    Реализованные механизмы:
+
+      create_consent: Связывает UUID пользователя с конкретной версией оферты/политики (consent_version). Метод фиксирует метаданные сетевого уровня (ip_address) и сигнатуру браузера/клиента (user_agent), сохраняя точное время фиксации через системный хелпер timezone.now().
+
+  d) UsersService
+  
+    Классический CRUD-сервис, выступающий фасадом над UsersRepository. Инкапсулирует операции над учетными данными жильцов, сопоставляя их с моделью сериализации UsersSerializer.
+
+### 5.1.2.8.2 Спецификация элементов пакета api.service.base
+  BaseService
+  
+    Является суперклассом для всех доменных сервисов системы. Он определяет статические интерфейсные атрибуты и методы манипуляции ресурсами.
+
+    Интерфейсные атрибуты (Точки расширения):
+
+      repository: Ссылка на класс инфраструктурного репозитория, реализующего методы get_or_404(), all(), update() и delete().
+
+      serializer_class: Ссылка на класс сериализатора Django REST Framework для парсинга, валидации и приведения типов данных (DTO).
+
+    Архитектурные механизмы и методы:
+
+      get(pk) / all(): Реализуют безопасное извлечение одной или списка записей. Метод get делегирует обработку отсутствующей записи репозиторию (get_or_404), изолируя сервис от прямой генерации HTTP-исключений (например, Http404 или ObjectDoesNotExist), а затем трансформирует ORM-выборку в сериализованный плоский словарь .data.
+
+      create(data): Оркестрирует входящий поток данных. Создает инстанс сериализатора, выполняет строгую валидацию, вызывает внутренний метод сохранения модели serializer.save() и возвращает структуру созданного объекта.
+
+      update(pk, data): Реализует паттерн частичного обновления (Partial Update). Флаг partial=True позволяет передавать на вход только те поля, которые претерпели изменения. После валидации сервис вызывает метод repository.update(), передавая туда очищенный и типизированный словарь serializer.validated_data, что гарантирует защиту от уязвимостей массового присвоения (Mass Assignment).
+
+      delete(pk): Координирует удаление ресурса. Сначала выполняет защитную проверку существования объекта через репозиторий, а затем передает инстанс на уничтожение в слой данных, возвращая явный статус True.
+
+### 5.1.2.8.3 Спецификация элементов пакета api.service.buildings
+  a) BuildingGroupsService
+  
+    Управляет верхнеуровневыми логическими объединениями недвижимости.
+
+    Архитектурные особенности: Выступает фасадом над BuildingGroupsRepository. Использует BuildingGroupsSerializer для контроля целостности метаданных ЖК (название, адресные ориентиры, управляющая компания).
+
+  b) BuildingsService
+  
+    Инкапсулирует операции над физическими домами, корпусами и строениями в рамках платформы.
+
+    Архитектурные особенности: Делегирует извлечение и модификацию физических характеристик зданий (этажность, строительные адреса, технические параметры) в BuildingsRepository, гарантируя строгое типизирование через BuildingsSerializer.
+
+  c) BuildingGroups_BuildingsService
+  
+    Выделенный слой-посредник, обслуживающий кросс-таблицу связей между Жилыми Комплексами (BuildingGroups) и конкретными Корпусами (Buildings).
+
+    Архитектурные особенности: Изолирует комплексную доменную логику "Многие-ко-многим". Позволяет гибко включать один и тот же корпус в разные эксплуатационные или административные группы, валидируя операции через специализированный BuildingGroups_BuildingsSerializer.
+
+  d) ZonesService
+  
+    Отвечает за логическое деление объектов недвижимости на подзоны.
+
+    Архитектурные особенности: Напрямую взаимодействует с ZonesRepository. Позволяет абстрагировать привязку оборудования автоматизации (шлагбаумы, СКУД, камеры) к конкретным изолированным периметрам внутри или снаружи зданий.
+
+### 5.1.2.8.4 Спецификация элементов пакета api.service.calls
+  MissedCallsService
+
+    Управление конфигурационными лимитами (Guard Rails):
+
+      Защита СУБД реализуется константами LIMIT_DEFAULT = 20 и LIMIT_MAX = 100. Любые запросы, превышающие максимальный лимит или передающие отрицательное смещение, жестко прерываются на уровне бизнес-логики с генерацией ValueError.
+
+    Архитектурные механизмы и приватные методы:
+
+      _sip_login_from_keycloak_user: Утилитный статический метод. Разбирает древовидную JSON-структуру профиля Keycloak, безопасно извлекая значение из массива кастомных атрибутов user.attributes.sip login.
+
+      _resolve_sip_login: Реализует оптимизированный патент получения идентификатора. Если SIP-логин уже присутствует в контексте запроса (например, был извлечен из JWT-токена на уровне Middleware и передан в sip_login_pref), сервис полностью исключает лишний сетевой RPC-вызов к Keycloak. В противном случае выполняется ленивый запрос через KeycloakRepository.
+
+      _parse_limit_offset: Отвечает за безопасное приведение типов и валидацию числовых диапазонов пагинации.
+
+    Публичный интерфейс (list_for_user_uuid):
+
+      Метод выполняет комплексную защитную проверку: если UUID пуст или пользователь отсутствует в локальной базе данных (UsersRepository), сервис мгновенно возвращает пустую структуру ответа со стандартными параметрами пагинации, не нагружая внешний шлюз АТС.
+
+      При успешной валидации запрашивается выборка из MissedCallsRepository и трансформируется в DTO-формат через специализированный MissedCallAsteriskSerializer.
+
+### 5.1.2.8.5 Спецификация элементов пакета api.service.cameras
+  a) CamerasDataService
+  
+    Обеспечивает жизненный цикл и технические параметры потоков камер. Наследует CRUD-контракты от BaseService.
+
+    Механизм распределенной синхронизации (set_archive_duration): Метод реализует стратегию Best-Effort Synchronization для обновления длительности хранения записей (archive_duration)
+
+  b) UserCamerasService
+  
+    Предоставляет оптимизированный интерфейс для клиентских приложений (мобильное приложение жильца, личный кабинет). Не наследует базовый сервис, работает в режиме Stateful-инициализации репозитория.
+
+    Архитектурные механизмы и приватные методы:
+
+      Разрешение приоритета прав (_resolve_archive_duration): Реализует логику переопределения тарифов. Если в связующей таблице Cameras_Users для конкретного пользователя задан индивидуальный лимит (personal_archive_duration), система применяет его. Если поле пусто, наследуется глобальное значение по умолчанию из карточки камеры (camera_data.archive_duration).
+
+      Парсинг временных интервалов (_archive_duration_to_days): Инкапсулирует регулярное выражение r"(\d+(?:\.\d+)?)([smhd]?)". Вычисляет эквивалент дней из любых единиц измерения времени (s - секунды, m - минуты, h - часы, d - дни). Результат округляется в большую сторону до целого дня (math.ceil) для корректного отображения календаря архива в UI.
+
+      Построение дерева доступности (get_user_cameras): Извлекает из репозитория агрегированный пул девайсов. Выполняет дедупликацию по seen_camera_ids. Распределяет камеры по логическим группам. Камеры, не привязанные к инфраструктуре ЖК, автоматически изолируются в виртуальную группу «Камеры без группы» со служебным идентификатором 9999.
+
+### 5.1.2.8.6 Спецификация элементов пакета api.service.devices
+  a) DevicesService
+  
+    Обеспечивает жизненный цикл оконечных аппаратных устройств. Наследует CRUD-контракты от BaseService.
+
+    Архитектурные механизмы и приватные методы:
+
+      Многофакторная матрица фильтрации (_prepare_devices_response): Метод динамически обогащает базовый DTO-пакет данных устройства:
+
+      SIP-идентификация: Если устройство является домофоном (intercomsdata_set), в корень ответа извлекается его первый активный SIP-адрес.
+
+      Контекст помещений (facilities):* Для жильцов извлекаются только те квартиры, к которым данный пользователь привязан явным образом через facility_users.
+
+      Комплексная логика входов (entrances_id):* Реализует сложный SQL-запрос через операторы Q(), объединяющий 4 независимых контура разрешений (прямой, через группы, через связи с недвижимостью). Для администраторов этот шаг опускается, отдавая плоский массив всех связанных с устройством входов.
+
+      Абстракция исполнительного реле (open_doors_by_entrances): Метод принимает массив ID входов, запрашивает устройства, ассоциированные с ними через get_devices_by_entrance_ids. Для каждого устройства динамически запрашивается драйвер (get_device_driver(device)). Логический номер реле (relay_id) транслируется из номера входа (entrance.num), по умолчанию принимая 1. Команда driver.open_door(relay_id) выполняется синхронно, формируя массив результатов выполнения для UI.
+
+  b) DeviceModelsService
+  
+    Выступает классическим справочником, инкапсулирующим CRUD над моделями устройств (DeviceModels). Позволяет определять технические лимиты, поддерживаемые типы потоков и количество реле для конкретных ревизий плат застройщика.
+
+  c) IntercomsDataService
+  
+    Управляет специфичными для домофонии параметрами: SIP-аккаунты, STUN-серверы, кодеки, RTSP-ссылки на потоки вещания панели. Предоставляет данные для Asterisk и подсистемы обработки звонков.
+
+  d) ReadersService
+  
+    Отвечает за логику работы физических считывателей ключей, подключенных к интерфейсным платам девайсов. Обеспечивает связывание считывателей с точками прохода.
+
+### 5.1.2.8.7 Спецификация элементов пакета api.service.dto
+  a) PjsipEndpointCreateResult
+  
+    Используется подсистемой телефонии и интеграции с Asterisk/PJSIP. Служит ответом (Response DTO) после выполнения команд генерации учетных записей для вызывных панелей или клиентских приложений.
+
+    Атрибуты и структура контракта:
+
+      id (str): Уникальный строковый идентификатор созданного эндпоинта (например, номер SIP-аккаунта).
+
+      created (bool): Флаг успешности операции. По умолчанию инициализируется как True.
+
+      message (str): Текстовый статус или расшифровка ошибки от АТС. По умолчанию принимает значение "ok".
+
+  b) PushMessage
+  
+    Используется как единый стандарт отправки нотификаций (Request DTO) перед их передачей в транспортные драйверы различных платформ (Google FCM, Apple APNS, Huawei HMS).
+
+    Атрибуты и структура контракта:
+
+      title (str): Заголовок push-уведомления (например, «Вызов в квартиру»).
+
+      text (str): Основное текстовое тело сообщения.
+
+### 5.1.2.8.8 Спецификация элементов пакета api.service.entrances
+  a) EntrancesService
+  
+    Ключевой вычислительный компонент подсистемы СКУД. Расширяет базовый функционал BaseService.
+
+    Алгоритм каскадной группировки и авторизации (_group_entrances):
+      Метод реализует детерминированный опрос доменных связей для каждого переданного входа (Entrance). Логика обработки строится по цепочке приоритетов с флагом раннего выхода (added_to_group):
+
+        Прямой контур пользователя (User Profile Context): Опрос связей через user_has_access. Если за пользователем или его персональными группами закреплен данный проход, он агрегируется в соответствующую группу.
+
+        Прямой жилищный контур (Direct Facility Context): Если первый шаг не дал результата, выполняется SQL-запрос к таблице Facilities_Entrances. Система проверяет, привязана ли дверь напрямую к квартире, которой владеет субъект (facility_users). При совпадении дверь маркируется как доступная и падает в виртуальную группу «Двери без группы».
+
+        Групповой жилищный контур (Group Facility Context): Проверяется таблица Facilities_EntranceGroups. Если квартира пользователя входит в пул недвижимости, за которой закреплена целая группа дверей, связь считается подтвержденной.
+
+      Фоллбэк-изоляция: Если ни один контур не подтвердил права, или у пользователя нет user_sub (запрос неавторизованного периметра), точка принудительно вытесняется в категорию несортированных дверей (UNGROUPED_ENTRANCES_GROUP_ID).
+
+    Интерфейсные методы формирования ответов:
+
+      get_user_entrances(sub): Запрашивает авторизованный пул дверей из репозитория, прогоняет через каскадный фильтр группировки и форматирует результат в сериализованный массив.
+
+      get_all_entrances(user_sub): Предоставляет административный интерфейс. Извлекает абсолютно все точки прохода системы. Если user_sub передан — распределяет их по группам согласно правам этого пользователя (для аудита доступности), если user_sub=None — собирает все двери в единый массив «Двери без группы».
+
+  b) Вспомогательные сервисы M2M и справочников
+  
+    EntranceGroupsService, EntranceGroups_EntrancesService, EntranceGroups_UsersService и Entrances_UsersService являются декларативными компонентами. Они напрямую наследуют BaseService и обеспечивают атомарные CRUD-операции над таблицами связей, позволяя администраторам добавлять жильцов в группы прохода, связывать новые двери с группами и редактировать названия подъездов.
+
+### 5.1.2.8.9 Спецификация элементов пакета api.service.facilities
+  a) FacilitiesService
+  
+    Служит основным сервисным процессором для управления логическими и физическими связями между недвижимостью (Facilities) и конечным оборудованием.
+
+    Архитектурные механизмы и ключевые методы:
+      Парсинг и нормализация сетевых адресов (_normalize_ip / extract_ip_port): Инкапсулирует логику безопасного извлечения хоста и порта из строк URL-адресов устройств, отсекая протоколы и IPv6-префиксы (::ffff:) для предотвращения ошибок при формировании прямых HTTP-запросов к оборудованию.
+      Каскадная синхронизация ключей (sync_device_facilities): * Контур контроллеров (model_id == 2): Собирает составной пул пользователей через прямые связи входов (Entrances_Users), связи групп входов (EntranceGroups_Users) и жилищные связи (Facilities_Users). Извлекает уникальные RFID-коды (Tags) и передает их в драйвер.
+      Управление SIP-профилями (configure_sip / configure_sip_by_device_id): Извлекает параметры авторизации АТС Asterisk из IntercomsData и осуществляет PATCH-модификацию настроек на устройстве с последующей верификацией статуса регистрации по протоколу HTTP.
+  b) Вспомогательные доменные сервисы связей
+
+    Facilities_DevicesService: Инкапсулирует CRUD над таблицей сопряжения оборудования и помещений. Предоставляет метаданные о типах связей (физическая/виртуальная) и локальных номерах абонентов на устройствах (num, num_aux).
+    Facilities_UsersService: Отвечает за атомарное управление правами жильцов на квартиры, обеспечивая корректность доменного контекста при расчете прав доступа.
+
+### 5.1.2.8.10 Спецификация элементов пакета api.service.integrations
+  a) Подсистема интеграции с телефонией (Asterisk / FreePBX / PJSIP)
+  
+    AsteriskExtensionsSyncService & PjsipRealtimeService: Обеспечивают связывание номеров квартир (Facilities.extension) и персональных VoIP-логинов пользователей из Keycloak. Данные транслируются напрямую в Realtime-таблицы АТС (ps_auths, ps_aors, ps_endpoints) с жестким контролем транзакций (Commit/Rollback) и профилированием кодеков под мобильные клиенты (opus, vp8) и домофоны (alaw).
+
+    AsteriskGroupService: Отвечает за логику Ring Groups (групп вызова). Например, при вызове квартиры №45 сервис группирует все SIP-аккаунты членов этой семьи, чтобы звонок с домофона одновременно поступал на смартфоны всех сожителей.
+
+    DevicesToFreePBXSyncService & KeycloakToFreePBXSyncService: Высокоуровневые сервисы автоматизации. Они служат для пакетной генерации или миграции внутренних номеров (Extensions) на платформе FreePBX при вводе в эксплуатацию новых многоквартирных домов.
+
+  b) Подсистема синхронизации медиасерверов (MediaMTX / CCTV)
+  
+    MediaMtxSynchonizeService: Периодическая задача, которая опрашивает локальную БД камер (CamerasData), формирует валидные endpoint-пути и отправляет конфигурационные HTTP-патчи в медиасервер MediaMTX, регистрируя новые live-потоки в системе вещания.
+
+    MediaMtxArchiveService: Парсит строковые форматы хранения (например, 168h или 30d), рассчитывает валидное временное окно (archive_from) и через API управляет логикой удаления старых файлов записей на дисковых массивах медиасервера, предотвращая переполнение хранилища.
+
+  c) Подсистема интеграции с Биллингом (Billing & IAM Lockout)
+  
+    BillingService: Отвечает за парсинг реестров начислений и интеграцию с внешним API расчетно-кассовых центров.
+
+    Billing_to_KeycloakService: Реализует критически важную бизнес-логику финансовой блокировки. Сервис анализирует задолженности жильцов из BillingService и, в случае превышения лимитов, отправляет запросы к   Admin REST API Keycloak, выставляя пользователю статус enabled=False или убирая его из групп доступа к умному дому, тем самым автоматически ограничивая авторизацию в мобильном приложении.
+
+### 5.1.2.8.11 Спецификация элементов пакета api.service.notifications
+  a) mapping
+  
+    Предоставляет функциональные хелперы для слоя бизнес-логики, изолируя функции форматирования от инфраструктуры Django ORM.
+
+    format_datetime_utc(value): Принимает объект даты/времени. Если временная зона не инициализирована, делает объект «осведомленным» (make_aware) в зоне UTC, приводит к единому стандарту astimezone(utc) и возвращает строку в формате ISO с маркером Z.
+
+    user_notifications_to_dict(row): Выступает в роли легковесного трансформера (Data Mapper). Преобразует сырой объект модели UserNotification в чистый Python-словарь (Plain Dict), готовый к JSON-сериализации на уровне контроллеров, обрабатывая временные метки через format_datetime_utc.
+
+  b) NotificationsService
+  
+    Координирует отправку сообщений и агрегирует выборки по фильтрам состояний.
+
+    Архитектурные механизмы и ключевые методы:
+
+      Пакетное создание и рассылка (send)
+
+      Атомарная смена состояний (change_status): Обернут в @transaction.atomic. Переводит строковый маркер статуса (readed, delivered, closed) в изменение конкретных полей модели СУБД. Применение параметра update_fields предотвращает перезапись смежных полей (Race Condition), если пользователь одновременно читает пуш и закрывает его на разных экранах.
+
+      Умная селекция алертов (get_user_latest_alert_notification): Реализует логику критически важных системных уведомлений (например, «Обнаружена протечка» или «Вызов с домофона»). Извлекает последнее актуальное сообщение, используя комплексную фильтрацию через OR-оператор Q(): уведомление должно быть либо полностью непрочитанным, либо иметь статус постоянного вывода на экран (is_permanent=True).
+
+### 5.1.2.9 Спецификация элементов пакета api
+  a) Модуль конфигурации apps
+  
+    ApiConfig наследует django.apps.AppConfig. Его главная задача — безопасная регистрация приложения в ядре Django.
+
+    Архитектурный механизм: Метод ready(self) переопределен для принудительного импорта модуля api.signals. Это гарантирует, что все подписки на события базы данных будут успешно зарегистрированы в памяти процесса до того, как веб-сервер начнет принимать первый входящий трафик.
+  b) Модуль констант constants
+  
+    Централизованное хранилище неизменяемых конфигурационных переменных. Исключает практику использования «магических строк» и «магических чисел» в бизнес-логике.
+
+    Типичные элементы: Строковые константы интеграций (например, SERVER_ASTERISK_NAME), системные идентификаторы по умолчанию (например, UNGROUPED_ENTRANCES_GROUP_ID = 9999 для виртуального контейнера несортированных дверей), статусы транзакций и технические лимиты платформы.
+  c) Модуль обработки ошибок exceptions
+  
+    Реализует паттерн глобального перехвата исключений (Global Exception Filter).
+
+    Архитектурные механизмы:
+
+    Классы кастомных доменных исключений (например, DeviceConnectionError, BillingSyncError), наследуемые от rest_framework.exceptions.APIException.
+
+    Функция custom_exception_handler(exc, context): Переопределяет стандартный обработчик DRF. При возникновении непредвиденной ошибки она логирует трассировку стэка, перехватывает системные сбои (базы данных, сетевые таймауты провайдеров пушей) и оборачивает их в унифицированную структуру JSON-ответа
+  d) Контур сериализации serializers
+  
+    Содержит декларативные классы для маппинга реляционных моделей в JSON (и обратно), а также правила валидации входящих параметров Payload.
+
+    Ключевые компоненты: DeviceModelsSerializer, DevicesSerializer, UserDeviceSerializer (с маскированием сервисных полей для жильцов), EntranceGroupsSerializer, EntrancesSerializer, IntercomsDataSerializer, ReadersSerializer. Они осуществляют проверку типов, обработку вложенных связей и подготовку данных для отдачи в сервисном слое.
+
+  e) Шина событий signals
+  
+    Реализует паттерн «Наблюдатель» (Observer) на уровне ORM.
+
+    Применение в системе: Автоматически реагирует на операции создания, обновления или удаления записей. Например, при создании записи IntercomsData сигнал инициирует асинхронную задачу на генерацию PJSIP-аккаунта в АТС Asterisk, а при удалении пользователя — каскадно зачищает его доступы и ключи в подсистеме СКУД.
+
+  f) Маршрутизация router и urls
+  
+    Компоненты верхнего уровня, управляющие распределением HTTP-трафика.
+
+    router.py: Инициализирует DefaultRouter или SimpleRouter из DRF. Автоматически генерирует стандартные REST-маршруты (GET/POST/PUT/DELETE) для зарегистрированных ViewSets (например, управления устройствами или группами входов).
+
+    urls.py: Главная точка входа для диспетчера URL. Объединяет автоматически сгенерированные пути из router.py, подключает статические маршруты для кастомных API-методов (таких как запуск синхронизации биллинга или команда открытия двери), а также эндпоинты для сбора логов и системного мониторинга.
+
+  g) Утилита очистки test_delete_kk
+  
+    Изолированный инфраструктурный скрипт/тест. Использует Admin REST API Keycloak для поиска и удаления тестовых или устаревших учетных записей пользователей. Применяется в контуре автоматизированного тестирования (CI/CD) или DevOps-инженерами для санитации окружения разработки (Staging/UAT) перед проведением интеграционных тестов телефонии.
+
+### 5.1.2.3 Подсистема 3: Конфигурационный пакет Smart Api
+
+    settings.py (Глобальные настройки): Центральный конфигурационный файл. Содержит ключевые переменные окружения, настройки безопасности (CORS, ALLOWED_HOSTS), подключение установленных приложений (включая наше приложение api), а также настройки многобазовой архитектуры (Multi-DB). Система одновременно управляет транзакциями основной реляционной СУБД (PostgreSQL) и внешних Realtime-таблиц АТС Asterisk (MySQL/MariaDB). Здесь же прописываются доступы к Keycloak Admin REST API и брокеру задач.
+
+    urls.py (Корневой маршрутизатор): Глобальная карта URL-адресов проекта. Подключает к общему веб-периметру локальные доменные маршруты из подпакета /api/, системные эндпоинты административной панели Django, а также интерфейсы для автоматической генерации OpenAPI/Swagger-документации.
+
+    wsgi.py (Синхронный сетевой шлюз): Интерфейс для обработки стандартных синхронных HTTP-запросов (GET, POST, PUT, DELETE) под управлением WSGI-серверов (например, Gunicorn) в production-среде.
+
+    asgi.py (Асинхронный сетевой шлюз): Асинхронный интерфейс приложения. Критически важен в системах умного дома для поддержания постоянных двусторонних соединений по протоколу WebSockets или обработки долгоживущих соединений (например, для мгновенной отправки пуш-уведомлений или передачи статуса открытия двери на мобильное приложение жильца в реальном времени).
+
